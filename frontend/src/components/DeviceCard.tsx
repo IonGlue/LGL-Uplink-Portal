@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Device } from "../api";
 
 interface Props {
@@ -8,12 +9,26 @@ interface Props {
 const STATE_LABELS: Record<string, string> = {
   idle: "Idle",
   starting: "Starting",
+  connecting: "Connecting",
   streaming: "Streaming",
   stopping: "Stopping",
   error: "Error",
 };
 
-function formatLastSeen(iso: string | null): string {
+function useRelativeTime(iso: string | null): string {
+  const [label, setLabel] = useState(() => formatRelative(iso));
+
+  useEffect(() => {
+    const update = () => setLabel(formatRelative(iso));
+    update();
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [iso]);
+
+  return label;
+}
+
+function formatRelative(iso: string | null): string {
   if (!iso) return "Never";
   const d = new Date(iso);
   const diffSec = Math.floor((Date.now() - d.getTime()) / 1000);
@@ -28,8 +43,10 @@ function shortId(id: string): string {
 }
 
 export default function DeviceCard({ device, onClick }: Props) {
-  const cs = device.connection_status; // "offline" | "online" | "streaming"
+  const cs = device.connection_status; // "offline" | "online" | "connecting" | "streaming"
   const stateLabel = STATE_LABELS[device.last_state] ?? device.last_state;
+  const lastSeen = useRelativeTime(device.last_seen_at);
+  const isOffline = cs === "offline";
 
   return (
     <div
@@ -39,6 +56,13 @@ export default function DeviceCard({ device, onClick }: Props) {
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onClick()}
     >
+      {isOffline && (
+        <div className="offline-banner">
+          <span className="offline-banner-icon">⚠</span>
+          <span>Offline</span>
+        </div>
+      )}
+
       <div className="card-header">
         <div className="card-title">
           <span className={`status-dot dot-${cs}`} />
@@ -59,12 +83,15 @@ export default function DeviceCard({ device, onClick }: Props) {
         <div className="meta-row">
           <dt>Status</dt>
           <dd className={`conn-status conn-${cs}`}>
-            {cs === "streaming" ? "Streaming" : cs === "online" ? "Online" : "Offline"}
+            {cs === "streaming" ? "Streaming"
+              : cs === "connecting" ? "Connecting"
+              : cs === "online" ? "Online"
+              : "Offline"}
           </dd>
         </div>
         <div className="meta-row">
           <dt>Last seen</dt>
-          <dd>{formatLastSeen(device.last_seen_at)}</dd>
+          <dd className={isOffline ? "last-seen-offline" : ""}>{lastSeen}</dd>
         </div>
         {device.control_claimed_by && (
           <div className="meta-row">

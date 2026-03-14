@@ -21,8 +21,11 @@
   --blue:         #4a6cf7;
   --blue-dim:     #1e2a66;
   --orange:       #f97316;
+  --orange-dim:   #7c2d12;
   --purple:       #a855f7;
   --purple-dim:   #4c1d95;
+  --amber:        #f59e0b;
+  --amber-dim:    #78350f;
 
   --radius:       10px;
   --radius-sm:    6px;
@@ -164,14 +167,49 @@
   border-left: 3px solid var(--purple);
 }
 
+.device-card.connecting {
+  border-left: 3px solid var(--amber);
+}
+
 .device-card.online {
   border-left: 3px solid var(--green);
 }
 
 .device-card.offline {
-  border-left: 3px solid var(--text-dim);
-  opacity: 0.7;
+  border-left: 4px solid var(--red);
+  background: color-mix(in srgb, var(--bg-card) 85%, var(--red) 15%);
+  border-color: var(--red);
 }
+
+.device-card.offline .hostname {
+  color: var(--text-muted);
+}
+
+/* Offline banner strip inside the card */
+.offline-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--red);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 5px 12px;
+  margin: -18px -20px 14px;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.offline-banner-icon { font-size: 14px; }
+
+.last-seen-offline {
+  color: var(--red);
+  font-weight: 600;
+}
+
+/* Section label for connecting state */
+.section-connecting { color: var(--amber); }
 
 .card-header {
   display: flex;
@@ -199,13 +237,19 @@
   animation: pulse 1.5s ease-in-out infinite;
 }
 
+.dot-connecting {
+  background: var(--amber);
+  box-shadow: 0 0 6px var(--amber);
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
 .dot-online {
   background: var(--green);
   box-shadow: 0 0 6px var(--green);
   animation: pulse 2s ease-in-out infinite;
 }
 
-.dot-offline { background: var(--text-dim); }
+.dot-offline { background: var(--red); }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
@@ -222,9 +266,10 @@
   font-size: 12px;
   font-weight: 500;
 }
-.conn-streaming { color: var(--purple); }
-.conn-online    { color: var(--green); }
-.conn-offline   { color: var(--text-dim); }
+.conn-streaming  { color: var(--purple); }
+.conn-connecting { color: var(--amber); }
+.conn-online     { color: var(--green); }
+.conn-offline    { color: var(--red); font-weight: 600; }
 
 /* ── State badge ───────────────────────────────────────────────── */
 .state-badge {
@@ -237,11 +282,13 @@
   color: var(--text-muted);
 }
 
-.state-streaming { background: var(--purple-dim); color: var(--purple); }
-.state-starting  { background: var(--blue-dim);   color: var(--blue);   }
-.state-stopping  { background: var(--blue-dim);   color: var(--blue);   }
-.state-error     { background: var(--red-dim);    color: var(--red);    }
-.state-idle      { background: var(--border);     color: var(--text-muted); }
+.state-streaming  { background: var(--purple-dim); color: var(--purple); }
+.state-connecting { background: var(--amber-dim);  color: var(--amber);  }
+.state-starting   { background: var(--amber-dim);  color: var(--amber);  }
+.state-stopping   { background: var(--blue-dim);   color: var(--blue);   }
+.state-error      { background: var(--red-dim);    color: var(--red);    }
+.state-idle       { background: var(--border);     color: var(--text-muted); }
+.state-offline    { background: var(--red-dim);    color: var(--red); font-weight: 600; }
 
 /* ── Card meta table ───────────────────────────────────────────── */
 .card-meta {
@@ -829,6 +876,72 @@
 .toggle input:checked + .toggle-track::after {
   transform: translateX(18px);
   background: #fff;
+}
+
+/* ── Modal offline strip ───────────────────────────────────────── */
+.modal-offline-strip {
+  background: var(--red);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 24px;
+  flex-shrink: 0;
+}
+
+.modal-offline-badge {
+  background: var(--red);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.no-telemetry-row {
+  grid-column: 1 / -1;
+}
+
+.offline-hint { color: var(--red) !important; }
+
+/* ── Control panel offline warning ─────────────────────────────── */
+.control-offline-warning {
+  background: var(--red-dim);
+  border: 1px solid var(--red);
+  border-radius: var(--radius-sm);
+  color: var(--red);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+
+/* ── Streaming tab protocol note ───────────────────────────────── */
+.protocol-note {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-top: 4px;
+}
+
+.protocol-tag {
+  background: var(--purple-dim);
+  color: var(--purple);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.protocol-hint {
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 /* ── Control panel ─────────────────────────────────────────────── */

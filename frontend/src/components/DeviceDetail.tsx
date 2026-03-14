@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { api, ApiError, Device, LiveTelemetry, DeviceConfig, BondPath } from "../api";
+import { api, ApiError, Device, LiveTelemetry, DeviceConfig, BondPath, DeviceConfigSnapshot } from "../api";
 
 interface Props {
   device: Device;
@@ -39,9 +39,29 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h3 className="settings-section-title">{children}</h3>;
 }
 
+/** Seed config form from telemetry config snapshot. */
+function configFromSnapshot(snap: DeviceConfigSnapshot): DeviceConfig {
+  return {
+    capture_device: snap.capture_device,
+    pipeline: undefined, // comes from encoder.pipeline
+    resolution: undefined, // comes from encoder.resolution
+    framerate: snap.framerate,
+    bitrate_min_kbps: snap.bitrate_min_kbps,
+    bitrate_max_kbps: snap.bitrate_max_kbps,
+    srt_host: snap.srt_host,
+    srt_port: snap.srt_port,
+    srt_latency_ms: snap.srt_latency_ms,
+    bond_enabled: snap.bond_enabled,
+    bond_relay_host: snap.bond_relay_host ?? undefined,
+    bond_relay_port: snap.bond_relay_port ?? undefined,
+    bond_local_port: snap.bond_local_port ?? undefined,
+    bond_keepalive_ms: snap.bond_keepalive_ms ?? undefined,
+  };
+}
+
 export default function DeviceDetail({ device, onClose, isAdmin }: Props) {
   const [telemetry, setTelemetry] = useState<LiveTelemetry | null>(null);
-  const [tab, setTab] = useState<"overview" | "network" | "settings" | "control">("overview");
+  const [tab, setTab] = useState<"overview" | "network" | "settings" | "streaming" | "control">("overview");
   const [cmdBusy, setCmdBusy] = useState(false);
   const [cmdMsg, setCmdMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [config, setConfig] = useState<DeviceConfig>({});
@@ -50,6 +70,8 @@ export default function DeviceDetail({ device, onClose, isAdmin }: Props) {
   const [configMsg, setConfigMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const configSeeded = useRef(false);
+
+  const isOffline = device.connection_status === "offline";
 
   // Live telemetry via WebSocket, REST fallback
   useEffect(() => {
@@ -77,15 +99,27 @@ export default function DeviceDetail({ device, onClose, isAdmin }: Props) {
     };
   }, [device.id]);
 
-  // Seed config form from first telemetry snapshot
+  // Seed config form from first telemetry snapshot (includes full config)
   useEffect(() => {
     if (!telemetry || configSeeded.current) return;
     configSeeded.current = true;
-    setConfig((prev) => ({
-      pipeline: prev.pipeline ?? telemetry.encoder.pipeline,
-      resolution: prev.resolution ?? telemetry.encoder.resolution,
-      ...prev,
-    }));
+
+    const snap = telemetry.config;
+    if (snap) {
+      // Seed from full config snapshot
+      setConfig({
+        ...configFromSnapshot(snap),
+        pipeline: telemetry.encoder.pipeline,
+        resolution: telemetry.encoder.resolution,
+      });
+      setBondPaths(snap.bond_paths.map((p) => ({ interface: p.interface, priority: p.priority })));
+    } else {
+      // Fallback: seed just what's in encoder stats
+      setConfig({
+        pipeline: telemetry.encoder.pipeline,
+        resolution: telemetry.encoder.resolution,
+      });
+    }
   }, [telemetry]);
 
   async function sendCmd(cmd: object) {
@@ -113,7 +147,26 @@ export default function DeviceDetail({ device, onClose, isAdmin }: Props) {
         bond_paths: config.bond_enabled ? bondPaths : undefined,
       };
       await api.setConfig(device.id, payload);
-      setConfigMsg({ ok: true, text: "Configuration saved — device is applying changes." });
+      setConfigMsg({ ok: true, text: "Configuration applied — device is updating." });
+    } catch (e) {
+      setConfigMsg({ ok: false, text: e instanceof ApiError ? e.message : "Failed to save" });
+    } finally {
+      setConfigBusy(false);
+    }
+  }
+
+  async function handleSaveStreaming(e: React.FormEvent) {
+    e.preventDefault();
+    setConfigBusy(true);
+    setConfigMsg(null);
+    try {
+      await api.claimControl(device.id).catch(() => {});
+      await api.setConfig(device.id, {
+        srt_host: config.srt_host,
+        srt_port: config.srt_port,
+        srt_latency_ms: config.srt_latency_ms,
+      });
+      setConfigMsg({ ok: true, text: "Streaming destination updated." });
     } catch (e) {
       setConfigMsg({ ok: false, text: e instanceof ApiError ? e.message : "Failed to save" });
     } finally {
@@ -134,7 +187,14 @@ export default function DeviceDetail({ device, onClose, isAdmin }: Props) {
   }
 
   const cs = device.connection_status;
-  const statusLabel = cs === "streaming" ? "Streaming" : cs === "online" ? "Online" : "Offline";
+  const statusLabel =
+    cs === "streaming" ? "Streaming"
+    : cs === "connecting" ? "Connecting"
+    : cs === "online" ? "Online"
+    : "Offline";
+
+  const captureDevices = telemetry?.available_capture_devices ?? [];
+  const interfaces = telemetry?.available_interfaces ?? [];
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
@@ -146,13 +206,25 @@ export default function DeviceDetail({ device, onClose, isAdmin }: Props) {
             <span className={`status-dot dot-${cs}`} />
             <h2 className="modal-title">{device.hostname}</h2>
             <span className={`state-badge state-${cs}`}>{statusLabel}</span>
+            {isOffline && (
+              <span className="modal-offline-badge">Device Offline</span>
+            )}
           </div>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
 
+        {/* Offline banner */}
+        {isOffline && (
+          <div className="modal-offline-strip">
+            <span>⚠ This device is offline — last seen {device.last_seen_at
+              ? new Date(device.last_seen_at).toLocaleString()
+              : "never"}. Settings shown are last known values.</span>
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="modal-tabs">
-          {(["overview", "network", "settings", "control"] as const).map((t) => (
+          {(["overview", "network", "settings", "streaming", "control"] as const).map((t) => (
             <button key={t} className={`tab-btn ${tab === t ? "active" : ""}`} onClick={() => setTab(t)}>
               {t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
@@ -164,22 +236,31 @@ export default function DeviceDetail({ device, onClose, isAdmin }: Props) {
           {/* ── Overview ──────────────────────────────────────────── */}
           {tab === "overview" && (
             <div className="stat-grid">
-              <Stat label="Device ID" value={device.device_id.slice(0, 16) + "…"} />
-              <Stat label="Version"   value={device.version} />
-              <Stat label="Status"    value={statusLabel} />
+              <Stat label="Device ID"  value={device.device_id.slice(0, 16) + "…"} />
+              <Stat label="Version"    value={device.version} />
+              <Stat label="Status"     value={statusLabel} />
               {telemetry ? <>
-                <Stat label="Uptime"           value={formatUptime(telemetry.uptime_secs)} />
-                <Stat label="Pipeline"         value={telemetry.encoder.pipeline} />
-                <Stat label="Resolution"       value={telemetry.encoder.resolution} />
-                <Stat label="Encoder bitrate"  value={telemetry.encoder.bitrate_kbps} unit="kbps" />
-                <Stat label="FPS"              value={telemetry.encoder.fps.toFixed(1)} />
-                <Stat label="Paths active"     value={telemetry.paths.length} />
-                <Stat label="Total bitrate"    value={telemetry.paths.reduce((s, p) => s + p.bitrate_kbps, 0).toLocaleString()} unit="kbps" />
-                <Stat label="Data age"         value={telemetry.age_ms} unit="ms" />
+                <Stat label="Uptime"          value={formatUptime(telemetry.uptime_secs)} />
+                <Stat label="Pipeline"        value={telemetry.encoder.pipeline} />
+                <Stat label="Resolution"      value={telemetry.encoder.resolution} />
+                <Stat label="Encoder bitrate" value={telemetry.encoder.bitrate_kbps.toLocaleString()} unit="kbps" />
+                <Stat label="FPS"             value={telemetry.encoder.fps.toFixed(1)} />
+                <Stat label="Paths active"    value={telemetry.paths.length} />
+                <Stat label="Total bitrate"   value={telemetry.paths.reduce((s, p) => s + p.bitrate_kbps, 0).toLocaleString()} unit="kbps" />
+                <Stat label="Data age"        value={telemetry.age_ms} unit="ms" />
+                {telemetry.config && <>
+                  <Stat label="Capture device" value={telemetry.config.capture_device} />
+                  <Stat label="Framerate"      value={telemetry.config.framerate} unit="fps" />
+                  <Stat label="Target bitrate" value={telemetry.config.bitrate_max_kbps.toLocaleString()} unit="kbps" />
+                  <Stat label="SRT destination" value={`${telemetry.config.srt_host}:${telemetry.config.srt_port}`} />
+                  <Stat label="Bonding"        value={telemetry.config.bond_enabled ? "Enabled" : "Disabled"} />
+                </>}
               </> : (
-                <p className="status-msg" style={{ gridColumn: "1/-1" }}>
-                  {device.status === "offline" ? "Device is offline." : "Waiting for telemetry…"}
-                </p>
+                <div className="no-telemetry-row">
+                  {isOffline
+                    ? <p className="status-msg offline-hint">Device is offline — no live data available.</p>
+                    : <p className="status-msg">Waiting for telemetry from device…</p>}
+                </div>
               )}
             </div>
           )}
@@ -187,33 +268,41 @@ export default function DeviceDetail({ device, onClose, isAdmin }: Props) {
           {/* ── Network ───────────────────────────────────────────── */}
           {tab === "network" && (
             <div>
-              {telemetry && telemetry.paths.length > 0 ? <>
-                <table className="data-table">
-                  <thead>
-                    <tr>
-                      <th>Interface</th><th>Bitrate</th><th>RTT</th>
-                      <th>Loss</th><th>In-flight</th><th>Window</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {telemetry.paths.map((p) => (
-                      <tr key={p.interface}>
-                        <td className="mono">{p.interface}</td>
-                        <td>{p.bitrate_kbps.toLocaleString()} kbps</td>
-                        <td className={p.rtt_ms > 100 ? "val-warn" : ""}>{p.rtt_ms.toFixed(1)} ms</td>
-                        <td className={p.loss_pct > 1 ? "val-warn" : ""}>{p.loss_pct.toFixed(2)}%</td>
-                        <td>{p.in_flight}</td>
-                        <td>{p.window.toLocaleString()}</td>
+              {telemetry ? (
+                telemetry.paths.length > 0 ? <>
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Interface</th><th>Bitrate</th><th>RTT</th>
+                        <th>Loss</th><th>In-flight</th><th>Window</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div className="stat-grid" style={{ marginTop: 16 }}>
-                  <Stat label="Total bitrate" value={telemetry.paths.reduce((s, p) => s + p.bitrate_kbps, 0).toLocaleString()} unit="kbps" />
-                  <Stat label="Active paths"  value={telemetry.paths.length} />
-                </div>
-              </> : (
-                <p className="status-msg">{telemetry ? "No bonded paths active." : "No telemetry yet."}</p>
+                    </thead>
+                    <tbody>
+                      {telemetry.paths.map((p) => (
+                        <tr key={p.interface}>
+                          <td className="mono">{p.interface}</td>
+                          <td>{p.bitrate_kbps.toLocaleString()} kbps</td>
+                          <td className={p.rtt_ms > 100 ? "val-warn" : ""}>{p.rtt_ms.toFixed(1)} ms</td>
+                          <td className={p.loss_pct > 1 ? "val-warn" : ""}>{p.loss_pct.toFixed(2)}%</td>
+                          <td>{p.in_flight}</td>
+                          <td>{p.window.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="stat-grid" style={{ marginTop: 16 }}>
+                    <Stat label="Total bitrate" value={telemetry.paths.reduce((s, p) => s + p.bitrate_kbps, 0).toLocaleString()} unit="kbps" />
+                    <Stat label="Active paths"  value={telemetry.paths.length} />
+                  </div>
+                </> : (
+                  <p className="status-msg">
+                    No active bond paths — device is streaming directly via SRT or encoder is idle.
+                  </p>
+                )
+              ) : (
+                <p className="status-msg">
+                  {isOffline ? "Device is offline — no network data." : "Waiting for telemetry…"}
+                </p>
               )}
             </div>
           )}
@@ -227,9 +316,18 @@ export default function DeviceDetail({ device, onClose, isAdmin }: Props) {
               <div className="settings-grid">
                 <div className="field">
                   <label>Capture device</label>
-                  <input className="text-input" type="text" placeholder="/dev/video0"
-                    value={config.capture_device ?? ""}
-                    onChange={(e) => setConfig({ ...config, capture_device: e.target.value || undefined })} />
+                  {captureDevices.length > 0 ? (
+                    <select className="select-input"
+                      value={config.capture_device ?? ""}
+                      onChange={(e) => setConfig({ ...config, capture_device: e.target.value || undefined })}>
+                      <option value="">— select device —</option>
+                      {captureDevices.map((d) => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  ) : (
+                    <input className="text-input" type="text" placeholder="/dev/video0"
+                      value={config.capture_device ?? ""}
+                      onChange={(e) => setConfig({ ...config, capture_device: e.target.value || undefined })} />
+                  )}
                 </div>
                 <div className="field">
                   <label>Pipeline</label>
@@ -248,7 +346,7 @@ export default function DeviceDetail({ device, onClose, isAdmin }: Props) {
                   </select>
                 </div>
                 <div className="field">
-                  <label>Framerate (fps)</label>
+                  <label>Framerate</label>
                   <input className="text-input" type="number" min={1} max={60} placeholder="30"
                     value={config.framerate ?? ""}
                     onChange={(e) => setConfig({ ...config, framerate: e.target.value ? Number(e.target.value) : undefined })} />
@@ -257,42 +355,21 @@ export default function DeviceDetail({ device, onClose, isAdmin }: Props) {
 
               {/* Encoder */}
               <SectionTitle>Encoder</SectionTitle>
+              <p className="settings-hint">
+                Set the target bitrate. The encoder adapts between min and target based on network conditions.
+              </p>
               <div className="settings-grid">
+                <div className="field">
+                  <label>Target bitrate (kbps)</label>
+                  <input className="text-input" type="number" min={100} max={100000} placeholder="8000"
+                    value={config.bitrate_max_kbps ?? ""}
+                    onChange={(e) => setConfig({ ...config, bitrate_max_kbps: e.target.value ? Number(e.target.value) : undefined })} />
+                </div>
                 <div className="field">
                   <label>Min bitrate (kbps)</label>
                   <input className="text-input" type="number" min={100} max={100000} placeholder="2000"
                     value={config.bitrate_min_kbps ?? ""}
                     onChange={(e) => setConfig({ ...config, bitrate_min_kbps: e.target.value ? Number(e.target.value) : undefined })} />
-                </div>
-                <div className="field">
-                  <label>Max bitrate (kbps)</label>
-                  <input className="text-input" type="number" min={100} max={100000} placeholder="8000"
-                    value={config.bitrate_max_kbps ?? ""}
-                    onChange={(e) => setConfig({ ...config, bitrate_max_kbps: e.target.value ? Number(e.target.value) : undefined })} />
-                </div>
-              </div>
-
-              {/* SRT destination */}
-              <SectionTitle>SRT Destination</SectionTitle>
-              <p className="settings-hint">Used when bonding is disabled. Set relay host below to use bonding instead.</p>
-              <div className="settings-grid">
-                <div className="field">
-                  <label>Host / IP</label>
-                  <input className="text-input" type="text" placeholder="ingest.example.com"
-                    value={config.srt_host ?? ""}
-                    onChange={(e) => setConfig({ ...config, srt_host: e.target.value || undefined })} />
-                </div>
-                <div className="field">
-                  <label>Port</label>
-                  <input className="text-input" type="number" min={1} max={65535} placeholder="5000"
-                    value={config.srt_port ?? ""}
-                    onChange={(e) => setConfig({ ...config, srt_port: e.target.value ? Number(e.target.value) : undefined })} />
-                </div>
-                <div className="field">
-                  <label>Latency (ms)</label>
-                  <input className="text-input" type="number" min={20} max={8000} placeholder="200"
-                    value={config.srt_latency_ms ?? ""}
-                    onChange={(e) => setConfig({ ...config, srt_latency_ms: e.target.value ? Number(e.target.value) : undefined })} />
                 </div>
               </div>
 
@@ -347,9 +424,24 @@ export default function DeviceDetail({ device, onClose, isAdmin }: Props) {
                       <div key={i} className="bond-path-row">
                         <div className="field" style={{ flex: 2 }}>
                           {i === 0 && <label>Interface</label>}
-                          <input className="text-input" type="text" placeholder="eth0 / usb0 / wlan0"
-                            value={p.interface}
-                            onChange={(e) => updatePath(i, "interface", e.target.value)} />
+                          {interfaces.length > 0 ? (
+                            <select className="select-input"
+                              value={p.interface}
+                              onChange={(e) => updatePath(i, "interface", e.target.value)}>
+                              <option value="">— select interface —</option>
+                              {interfaces.map((iface) => (
+                                <option key={iface} value={iface}>{iface}</option>
+                              ))}
+                              {/* Also show the current value if not in the list */}
+                              {p.interface && !interfaces.includes(p.interface) && (
+                                <option value={p.interface}>{p.interface} (current)</option>
+                              )}
+                            </select>
+                          ) : (
+                            <input className="text-input" type="text" placeholder="eth0 / usb0 / wlan0"
+                              value={p.interface}
+                              onChange={(e) => updatePath(i, "interface", e.target.value)} />
+                          )}
                         </div>
                         <div className="field" style={{ flex: 1 }}>
                           {i === 0 && <label>Priority</label>}
@@ -368,6 +460,29 @@ export default function DeviceDetail({ device, onClose, isAdmin }: Props) {
                 </>
               )}
 
+              {/* Primary network interface */}
+              {interfaces.length > 0 && (
+                <>
+                  <SectionTitle>Primary Network Interface</SectionTitle>
+                  <p className="settings-hint">
+                    The interface currently used for the primary path. Set it explicitly to prefer a specific connection.
+                  </p>
+                  <div className="settings-grid">
+                    <div className="field">
+                      <label>Primary interface</label>
+                      <select className="select-input"
+                        value=""
+                        onChange={() => {}}>
+                        <option value="">— auto (by priority) —</option>
+                        {interfaces.map((iface) => (
+                          <option key={iface} value={iface}>{iface}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+
               {/* Save */}
               {configMsg && (
                 <p className={configMsg.ok ? "cmd-success" : "cmd-error"}>{configMsg.text}</p>
@@ -375,7 +490,7 @@ export default function DeviceDetail({ device, onClose, isAdmin }: Props) {
               <div className="settings-actions">
                 {isAdmin ? (
                   <button type="submit" className="btn btn-primary" style={{ width: "auto" }}
-                    disabled={configBusy}>
+                    disabled={configBusy || isOffline}>
                     {configBusy ? "Applying…" : "Apply to device"}
                   </button>
                 ) : (
@@ -386,22 +501,80 @@ export default function DeviceDetail({ device, onClose, isAdmin }: Props) {
             </form>
           )}
 
+          {/* ── Streaming ─────────────────────────────────────────── */}
+          {tab === "streaming" && (
+            <form className="settings-form" onSubmit={handleSaveStreaming}>
+              <SectionTitle>SRT Destination</SectionTitle>
+              <p className="settings-hint">
+                The SRT ingest endpoint this device streams to. Used when bonding is disabled.
+                Set the relay host in Settings → Bonding to use multi-path bonding instead.
+              </p>
+              <div className="settings-grid">
+                <div className="field">
+                  <label>Host / IP</label>
+                  <input className="text-input" type="text" placeholder="ingest.example.com"
+                    value={config.srt_host ?? ""}
+                    onChange={(e) => setConfig({ ...config, srt_host: e.target.value || undefined })} />
+                </div>
+                <div className="field">
+                  <label>Port</label>
+                  <input className="text-input" type="number" min={1} max={65535} placeholder="5000"
+                    value={config.srt_port ?? ""}
+                    onChange={(e) => setConfig({ ...config, srt_port: e.target.value ? Number(e.target.value) : undefined })} />
+                </div>
+                <div className="field">
+                  <label>Latency (ms)</label>
+                  <input className="text-input" type="number" min={20} max={8000} placeholder="200"
+                    value={config.srt_latency_ms ?? ""}
+                    onChange={(e) => setConfig({ ...config, srt_latency_ms: e.target.value ? Number(e.target.value) : undefined })} />
+                </div>
+              </div>
+
+              <div className="protocol-note">
+                <span className="protocol-tag">SRT</span>
+                <span className="protocol-hint">More protocols coming soon (RTMP, RIST)</span>
+              </div>
+
+              {configMsg && (
+                <p className={configMsg.ok ? "cmd-success" : "cmd-error"}>{configMsg.text}</p>
+              )}
+              <div className="settings-actions">
+                {isAdmin ? (
+                  <button type="submit" className="btn btn-primary" style={{ width: "auto" }}
+                    disabled={configBusy || isOffline}>
+                    {configBusy ? "Saving…" : "Save destination"}
+                  </button>
+                ) : (
+                  <p className="status-msg">Admin role required to change settings.</p>
+                )}
+              </div>
+            </form>
+          )}
+
           {/* ── Control ───────────────────────────────────────────── */}
           {tab === "control" && (
             <div>
+              {isOffline && (
+                <div className="control-offline-warning">
+                  Device is offline — commands cannot be sent.
+                </div>
+              )}
               <div className="control-grid">
-                <button className="btn btn-success" disabled={cmdBusy}
+                <button className="btn btn-success" disabled={cmdBusy || isOffline}
                   onClick={() => sendCmd({ cmd: "start" })}>
                   ▶ Start Encoder
                 </button>
-                <button className="btn btn-danger" disabled={cmdBusy}
+                <button className="btn btn-danger" disabled={cmdBusy || isOffline}
                   onClick={() => sendCmd({ cmd: "stop" })}>
                   ■ Stop Encoder
                 </button>
               </div>
               <div className="control-section">
-                <h3 className="control-section-title">Bitrate Range</h3>
-                <BitrateControl onSend={sendCmd} busy={cmdBusy} telemetry={telemetry} />
+                <h3 className="control-section-title">Target Bitrate</h3>
+                <p className="settings-hint" style={{ marginBottom: 12 }}>
+                  Sets the maximum bitrate the encoder targets. The encoder adapts down to the minimum when network is congested.
+                </p>
+                <BitrateControl onSend={sendCmd} busy={cmdBusy || isOffline} telemetry={telemetry} />
               </div>
               {cmdMsg && (
                 <p className={cmdMsg.ok ? "cmd-success" : "cmd-error"}>{cmdMsg.text}</p>
@@ -422,26 +595,37 @@ function BitrateControl({
   busy: boolean;
   telemetry: LiveTelemetry | null;
 }) {
-  const [min, setMin] = useState(telemetry ? String(Math.round(telemetry.encoder.bitrate_kbps * 0.5)) : "2000");
-  const [max, setMax] = useState(telemetry ? String(telemetry.encoder.bitrate_kbps) : "8000");
+  const currentTarget = telemetry?.config?.bitrate_max_kbps ?? telemetry?.encoder.bitrate_kbps ?? 8000;
+  const currentMin = telemetry?.config?.bitrate_min_kbps ?? Math.round(currentTarget * 0.5);
+
+  const [target, setTarget] = useState(String(currentTarget));
+  const [min, setMin] = useState(String(currentMin));
+
+  // Refresh displayed values when telemetry arrives
+  useEffect(() => {
+    if (telemetry?.config) {
+      setTarget(String(telemetry.config.bitrate_max_kbps));
+      setMin(String(telemetry.config.bitrate_min_kbps));
+    }
+  }, [telemetry?.config?.bitrate_max_kbps, telemetry?.config?.bitrate_min_kbps]);
 
   return (
     <div className="bitrate-control">
       <div className="bitrate-inputs">
         <div className="field">
+          <label>Target (kbps)</label>
+          <input className="text-input" type="number" min={100} max={100000}
+            value={target} onChange={(e) => setTarget(e.target.value)} />
+        </div>
+        <div className="field">
           <label>Min (kbps)</label>
           <input className="text-input" type="number" min={100} max={100000}
             value={min} onChange={(e) => setMin(e.target.value)} />
         </div>
-        <div className="field">
-          <label>Max (kbps)</label>
-          <input className="text-input" type="number" min={100} max={100000}
-            value={max} onChange={(e) => setMax(e.target.value)} />
-        </div>
       </div>
       <button className="btn btn-secondary" style={{ width: "auto" }} disabled={busy}
-        onClick={() => onSend({ cmd: "set_bitrate_range", min_kbps: Number(min), max_kbps: Number(max) })}>
-        Set bitrate range
+        onClick={() => onSend({ cmd: "set_bitrate_range", min_kbps: Number(min), max_kbps: Number(target) })}>
+        Set bitrate
       </button>
     </div>
   );
