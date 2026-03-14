@@ -306,7 +306,7 @@ pub async fn update_nickname(
         claims.sub,
         device_id,
         "device.set_nickname",
-        body.nickname.as_deref().map(|n| serde_json::json!({ "nickname": n })).as_ref(),
+        body.nickname.as_deref().map(|n| serde_json::json!({ "nickname": n })),
     )
     .await;
 
