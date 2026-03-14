@@ -43,8 +43,8 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 function configFromSnapshot(snap: DeviceConfigSnapshot): DeviceConfig {
   return {
     capture_device: snap.capture_device,
-    pipeline: undefined, // comes from encoder.pipeline
-    resolution: undefined, // comes from encoder.resolution
+    pipeline: snap.pipeline_variant,
+    resolution: undefined, // comes from encoder.resolution (separate field)
     framerate: snap.framerate,
     bitrate_min_kbps: snap.bitrate_min_kbps,
     bitrate_max_kbps: snap.bitrate_max_kbps,
@@ -73,8 +73,12 @@ export default function DeviceDetail({ device, onClose, isAdmin }: Props) {
 
   const isOffline = device.connection_status === "offline";
 
-  // Live telemetry via WebSocket, REST fallback
+  // Live telemetry via WebSocket, REST fallback + immediate seed fetch
   useEffect(() => {
+    // 1. Immediately fetch via REST to seed settings without waiting for WS
+    api.liveTelemetry(device.id).then((t) => setTelemetry(t)).catch(() => {});
+
+    // 2. Open WS for continuous live updates
     const url = api.telemetryStreamUrl(device.id);
     const ws = new WebSocket(url);
     wsRef.current = ws;
@@ -106,10 +110,9 @@ export default function DeviceDetail({ device, onClose, isAdmin }: Props) {
 
     const snap = telemetry.config;
     if (snap) {
-      // Seed from full config snapshot
+      // Seed from full config snapshot (pipeline_variant in snap, resolution from encoder stats)
       setConfig({
         ...configFromSnapshot(snap),
-        pipeline: telemetry.encoder.pipeline,
         resolution: telemetry.encoder.resolution,
       });
       setBondPaths(snap.bond_paths.map((p) => ({ interface: p.interface, priority: p.priority })));

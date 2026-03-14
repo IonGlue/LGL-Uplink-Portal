@@ -56,6 +56,7 @@ export interface EncoderStats {
 
 /** Full config snapshot reported by the device in every telemetry push. */
 export interface DeviceConfigSnapshot {
+  pipeline_variant: string;
   capture_device: string;
   framerate: number;
   bitrate_min_kbps: number;
