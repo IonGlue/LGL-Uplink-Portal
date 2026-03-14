@@ -1,0 +1,3 @@
+# Never commit tunnel credentials — they grant access to your Cloudflare account.
+credentials.json
+*.json

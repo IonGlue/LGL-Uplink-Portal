@@ -1,3 +1,4 @@
+use axum::http::HeaderMap;
 use serde::Deserialize;
 use std::path::Path;
 
@@ -17,6 +18,25 @@ pub struct ServerConfig {
     pub host: String,
     pub port: u16,
     pub ws_path: String,
+    /// When true, read client IP from the `CF-Connecting-IP` header instead of
+    /// the TCP peer address.  Enable only when traffic arrives exclusively via
+    /// Cloudflare Tunnel — never when the service is directly internet-reachable,
+    /// because any client could then spoof the header.
+    #[serde(default)]
+    pub trust_cf_connecting_ip: bool,
+}
+
+impl ServerConfig {
+    /// Returns the real client IP string, respecting the CF-Connecting-IP header
+    /// when `trust_cf_connecting_ip` is enabled.
+    pub fn client_ip<'a>(&self, headers: &'a HeaderMap, peer_addr: &'a str) -> &'a str {
+        if self.trust_cf_connecting_ip {
+            if let Some(v) = headers.get("CF-Connecting-IP").and_then(|v| v.to_str().ok()) {
+                return v;
+            }
+        }
+        peer_addr
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]

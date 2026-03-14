@@ -27,8 +27,10 @@ services:
 
   ingest:
     build: .
+    # No public port exposure — access is only via the cloudflare tunnel.
+    # Expose 8080 locally only during development (remove in production).
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     environment:
       DATABASE_URL: postgres://ingest:password@postgres:5432/lgl_ingest
       REDIS_URL: redis://redis:6379
@@ -38,6 +40,28 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  # Cloudflare Tunnel — exposes the ingest service through Cloudflare's edge
+  # without opening any public inbound ports on this host.
+  #
+  # Usage:
+  #   1. Create a tunnel: cloudflared tunnel create lgl-ingest
+  #   2. Copy the credentials JSON to config/cloudflare-tunnel-credentials.json
+  #   3. Set CLOUDFLARE_TUNNEL_TOKEN (or use credentials file below)
+  #
+  # Comment this service out for local-only development.
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: tunnel --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./config/cloudflared:/etc/cloudflared:ro
+    depends_on:
+      - ingest
+    environment:
+      # Alternative to the config file: set the tunnel token directly.
+      # Get it from: Cloudflare Zero Trust → Access → Tunnels → your tunnel → Token
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
 
 volumes:
   pgdata:

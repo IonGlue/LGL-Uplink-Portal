@@ -3,6 +3,15 @@ host = "0.0.0.0"
 port = 8080
 ws_path = "/devices"
 
+# When running behind Cloudflare Tunnel, the direct peer address is always a
+# Cloudflare egress IP.  Set this to true so the server reads the real client
+# IP from the "CF-Connecting-IP" request header instead (used for rate limiting
+# and audit logging).
+#
+# IMPORTANT: only enable this when the service is not directly reachable from
+# the public internet — otherwise a malicious client could spoof the header.
+trust_cf_connecting_ip = false
+
 [database]
 url = "postgres://ingest:password@localhost:5432/lgl_ingest"
 max_connections = 20
