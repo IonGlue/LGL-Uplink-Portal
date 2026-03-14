@@ -71,6 +71,16 @@ export interface InterfaceInfo {
   is_up: boolean;
 }
 
+/** A discovered video output connector (DRM/KMS). */
+export interface VideoOutputDeviceInfo {
+  /** Connector name, e.g. "HDMI-A-1" or "DP-1" */
+  name: string;
+  /** Connector type, e.g. "HDMI-A" or "DisplayPort" */
+  connector_type: string;
+  /** Whether a display is physically connected */
+  connected: boolean;
+}
+
 /** Full config snapshot reported by the device in every telemetry push. */
 export interface DeviceConfigSnapshot {
   pipeline_variant: string;
@@ -101,6 +111,8 @@ export interface LiveTelemetry {
   available_capture_devices?: CaptureDeviceInfo[];
   /** Available network interfaces on this machine. */
   available_interfaces?: InterfaceInfo[];
+  /** Available video output connectors (DRM/KMS) on this machine. */
+  available_video_outputs?: VideoOutputDeviceInfo[];
   uptime_secs: number;
   age_ms: number;
 }

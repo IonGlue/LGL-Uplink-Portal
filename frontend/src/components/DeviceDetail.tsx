@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { api, ApiError, Device, LiveTelemetry, DeviceConfig, BondPath, DeviceConfigSnapshot } from "../api";
+import { api, ApiError, Device, LiveTelemetry, DeviceConfig, BondPath, DeviceConfigSnapshot, VideoOutputDeviceInfo } from "../api";
 
 interface Props {
   device: Device;
@@ -85,6 +85,9 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
   const [minBitrate, setMinBitrate] = useState(2000);
   const [bitrateBusy, setBitrateBusy] = useState(false);
   const [bitrateMsg, setBitrateMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  // SRT URL paste — passphrase hint (not sent to device, shown for reference)
+  const [srtPassphraseHint, setSrtPassphraseHint] = useState<string | null>(null);
 
   // Nickname editing
   const [nicknameDraft, setNicknameDraft] = useState(device.nickname ?? "");
@@ -258,6 +261,29 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
   const captureDevices = telemetry?.available_capture_devices ?? [];
   const ifaces = telemetry?.available_interfaces ?? [];
   const ifaceNames = ifaces.map((i) => i.name);
+  const videoOutputs: VideoOutputDeviceInfo[] = telemetry?.available_video_outputs ?? [];
+
+  /** Parse an SRT URL like srt://host:port?passphrase=xxx and populate config fields.
+   *  Returns the passphrase string if present (for display), or null. */
+  function parseSrtUrl(raw: string): string | null {
+    const trimmed = raw.trim();
+    if (!trimmed.startsWith("srt://")) return null;
+    try {
+      const u = new URL("https://" + trimmed.slice(6));
+      const host = u.hostname;
+      const port = u.port ? Number(u.port) : undefined;
+      const passphrase = u.searchParams.get("passphrase");
+      setConfig((c) => ({
+        ...c,
+        ...(host ? { srt_host: host } : {}),
+        ...(port ? { srt_port: port } : {}),
+      }));
+      setSrtPassphraseHint(passphrase);
+      return passphrase;
+    } catch {
+      return null;
+    }
+  }
 
   const displayName = device.nickname?.trim() || device.hostname;
 
@@ -443,9 +469,7 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
                   </>
                 ) : (
                   <p className="status-msg">
-                    {ifaces.length === 0
-                      ? isOffline ? "Device is offline — no network data." : "Waiting for telemetry…"
-                      : "No active bond paths — streaming directly via SRT or encoder is idle."}
+                    No active bond paths — streaming directly via SRT or encoder is idle.
                   </p>
                 )
               ) : (
@@ -455,11 +479,49 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
                   </p>
                 )
               )}
+
+              {/* Video output connectors */}
+              {videoOutputs.length > 0 && (
+                <>
+                  <SectionTitle>Video Output</SectionTitle>
+                  <table className="data-table" style={{ marginBottom: 8 }}>
+                    <thead>
+                      <tr>
+                        <th>Connector</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {videoOutputs.map((o) => (
+                        <tr key={o.name}>
+                          <td className="mono">{o.name}</td>
+                          <td>{o.connector_type}</td>
+                          <td>
+                            <span className={o.connected ? "iface-up" : "iface-down"}>
+                              {o.connected ? "Connected" : "No display"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              )}
             </div>
           )}
 
           {/* ── Settings ──────────────────────────────────────────── */}
           {tab === "settings" && (
+            !telemetry ? (
+              <div className="no-telemetry-row">
+                <p className="status-msg">
+                  {isOffline
+                    ? "Device is offline — settings unavailable."
+                    : "Loading device configuration…"}
+                </p>
+              </div>
+            ) : (
             <form className="settings-form" onSubmit={handleSaveConfig}>
 
               {/* Video input */}
@@ -475,7 +537,6 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
                       {captureDevices.map((d) => (
                         <option key={d.path} value={d.path}>{d.name} ({d.path})</option>
                       ))}
-                      {/* Keep current value if not in list */}
                       {config.capture_device && !captureDevices.some((d) => d.path === config.capture_device) && (
                         <option value={config.capture_device}>{config.capture_device} (current)</option>
                       )}
@@ -490,16 +551,20 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
                   <label>Pipeline</label>
                   <select className="select-input" value={config.pipeline ?? ""}
                     onChange={(e) => setConfig({ ...config, pipeline: e.target.value || undefined })}>
-                    <option value="">— unchanged —</option>
                     {PIPELINES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+                    {config.pipeline && !PIPELINES.some((p) => p.value === config.pipeline) && (
+                      <option value={config.pipeline}>{config.pipeline}</option>
+                    )}
                   </select>
                 </div>
                 <div className="field">
                   <label>Resolution</label>
                   <select className="select-input" value={config.resolution ?? ""}
                     onChange={(e) => setConfig({ ...config, resolution: e.target.value || undefined })}>
-                    <option value="">— unchanged —</option>
-                    {RESOLUTIONS.map((r) => <option key={r}>{r}</option>)}
+                    {RESOLUTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                    {config.resolution && !RESOLUTIONS.includes(config.resolution) && (
+                      <option value={config.resolution}>{config.resolution}</option>
+                    )}
                   </select>
                 </div>
                 <div className="field">
@@ -507,8 +572,10 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
                   <select className="select-input"
                     value={config.framerate ?? ""}
                     onChange={(e) => setConfig({ ...config, framerate: e.target.value || undefined })}>
-                    <option value="">— unchanged —</option>
                     {SMPTE_RATES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+                    {config.framerate && !SMPTE_RATES.some((r) => r.value === config.framerate) && (
+                      <option value={config.framerate}>{config.framerate}</option>
+                    )}
                   </select>
                 </div>
               </div>
@@ -615,6 +682,7 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
               </div>
 
             </form>
+            )
           )}
 
           {/* ── Streaming ─────────────────────────────────────────── */}
@@ -668,6 +736,36 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
                   The SRT ingest endpoint this device streams to. Used when bonding is disabled.
                   Configure the relay host in Settings → Bonding for multi-path bonding.
                 </p>
+
+                {/* SRT URL quick-paste */}
+                <div className="field" style={{ marginBottom: 12 }}>
+                  <label>Paste SRT URL</label>
+                  <input className="text-input" type="text"
+                    placeholder="srt://live.example.com:1234?passphrase=secret"
+                    onPaste={(e) => {
+                      const text = e.clipboardData.getData("text");
+                      if (text.trim().startsWith("srt://")) {
+                        e.preventDefault();
+                        parseSrtUrl(text);
+                      }
+                    }}
+                    onChange={(e) => {
+                      if (e.target.value.trim().startsWith("srt://")) {
+                        parseSrtUrl(e.target.value);
+                        e.target.value = "";
+                      }
+                    }}
+                  />
+                  <span className="settings-hint" style={{ marginTop: 4 }}>
+                    Paste an SRT URL to auto-fill host and port below.
+                  </span>
+                  {srtPassphraseHint && (
+                    <p className="status-msg" style={{ marginTop: 4 }}>
+                      Passphrase detected in URL: <code>{srtPassphraseHint}</code> — configure this on the ingest server separately.
+                    </p>
+                  )}
+                </div>
+
                 <div className="settings-grid">
                   <div className="field">
                     <label>Host / IP</label>
@@ -726,6 +824,10 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
                 <button className="btn btn-danger" disabled={cmdBusy || isOffline}
                   onClick={() => sendCmd({ cmd: "stop" })}>
                   ■ Stop Encoder
+                </button>
+                <button className="btn btn-secondary" disabled={cmdBusy || isOffline}
+                  onClick={() => sendCmd({ cmd: "restart" })}>
+                  ↺ Restart Encoder
                 </button>
               </div>
               {cmdMsg && (
