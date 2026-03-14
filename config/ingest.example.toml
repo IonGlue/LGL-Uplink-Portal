@@ -1,0 +1,29 @@
+[server]
+host = "0.0.0.0"
+port = 8080
+ws_path = "/devices"
+
+[database]
+url = "postgres://ingest:password@localhost:5432/lgl_ingest"
+max_connections = 20
+
+[redis]
+url = "redis://localhost:6379"
+
+[auth]
+jwt_secret = "change-me-in-production"
+device_token_ttl = 3600
+user_token_ttl = 3600
+
+[control]
+claim_ttl = 300
+claim_check_interval = 30
+
+[telemetry]
+history_ttl_hours = 24
+prune_interval = 300
+db_sample_rate = 5
+
+[limits]
+max_devices_per_org = 100
+max_users_per_org = 50
