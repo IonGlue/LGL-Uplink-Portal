@@ -7,7 +7,7 @@ use axum::{
     Json,
 };
 use chrono::{DateTime, Duration, Utc};
-use futures::{SinkExt, StreamExt};
+use futures_util::{SinkExt, StreamExt};
 use serde::Deserialize;
 use serde_json::{json, Value};
 use uuid::Uuid;

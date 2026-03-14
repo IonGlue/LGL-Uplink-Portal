@@ -1,5 +1,5 @@
 use axum::extract::ws::{Message, WebSocket};
-use futures::{SinkExt, StreamExt};
+use futures_util::{SinkExt, StreamExt};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::time::Duration;
@@ -57,7 +57,7 @@ pub async fn handle_device_ws(ws: WebSocket, state: AppState) {
         }
     };
 
-    let register: RegisterMsg = match serde_json::from_str(&first_msg) {
+    let register: RegisterMsg = match serde_json::from_str::<RegisterMsg>(&first_msg) {
         Ok(msg) if msg.msg_type == "register" => msg,
         _ => {
             warn!("device sent unexpected first message");

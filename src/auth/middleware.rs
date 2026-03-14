@@ -1,5 +1,5 @@
 use axum::{
-    extract::{FromRequestParts, State},
+    extract::FromRequestParts,
     http::{request::Parts, HeaderMap},
 };
 
@@ -11,7 +11,6 @@ use crate::{
 
 pub struct AuthUser(pub UserClaims);
 
-#[axum::async_trait]
 impl FromRequestParts<AppState> for AuthUser {
     type Rejection = AppError;
 
