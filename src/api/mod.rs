@@ -35,6 +35,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/v1/devices/{id}/claim-to-org", post(devices::claim_device_to_org))
         .route("/api/v1/devices/{id}/enroll", post(devices::enroll_device))
         .route("/api/v1/devices/{id}/reject", post(devices::reject_device))
+        .route("/api/v1/devices/{id}/nickname", patch(devices::update_nickname))
         // Assignments
         .route(
             "/api/v1/devices/{id}/assignments",

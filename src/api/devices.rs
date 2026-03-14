@@ -39,6 +39,7 @@ pub struct DeviceResponse {
     pub id: Uuid,
     pub device_id: String,
     pub hostname: String,
+    pub nickname: Option<String>,
     pub version: String,
     /// Raw WS status: "online" | "offline"
     pub status: String,
@@ -65,6 +66,7 @@ async fn enrich_device(device: Device, state: &AppState) -> Result<DeviceRespons
         id: device.id,
         device_id: device.device_id,
         hostname: device.hostname,
+        nickname: device.nickname,
         version: device.version,
         status: device.status,
         last_state: device.last_state,
@@ -265,4 +267,48 @@ pub async fn decommission_device(
 
     Device::decommission(device_id, &state.db).await?;
     Ok(Json(serde_json::json!({ "decommissioned": true })))
+}
+
+#[derive(Deserialize)]
+pub struct NicknameBody {
+    /// Set to null/absent to clear the nickname.
+    pub nickname: Option<String>,
+}
+
+/// Update the user-facing nickname for a device.
+pub async fn update_nickname(
+    State(state): State<AppState>,
+    AuthUser(claims): AuthUser,
+    Path(device_id): Path<Uuid>,
+    Json(body): Json<NicknameBody>,
+) -> Result<Json<serde_json::Value>> {
+    let device = Device::find_by_id(device_id, &state.db)
+        .await?
+        .ok_or(AppError::NotFound)?;
+
+    // Admins can rename any device in their org; regular users cannot rename devices.
+    require_admin(&claims)?;
+    if device.org_id != Some(claims.org_id) {
+        return Err(AppError::NotFound);
+    }
+
+    // Validate length
+    if let Some(ref name) = body.nickname {
+        if name.len() > 100 {
+            return Err(AppError::InvalidCommand("nickname must be <= 100 characters".to_string()));
+        }
+    }
+
+    Device::update_nickname(device_id, body.nickname.as_deref(), &state.db).await?;
+
+    let _ = AuditLog::log_user_command(
+        &state.db,
+        claims.sub,
+        device_id,
+        "device.set_nickname",
+        body.nickname.as_deref().map(|n| serde_json::json!({ "nickname": n })).as_ref(),
+    )
+    .await;
+
+    Ok(Json(serde_json::json!({ "ok": true })))
 }

@@ -66,7 +66,12 @@ export default function DeviceCard({ device, onClick }: Props) {
       <div className="card-header">
         <div className="card-title">
           <span className={`status-dot dot-${cs}`} />
-          <span className="hostname">{device.hostname}</span>
+          <div className="hostname-block">
+            <span className="hostname">{device.nickname?.trim() || device.hostname}</span>
+            {device.nickname?.trim() && (
+              <span className="hostname-sub">{device.hostname}</span>
+            )}
+          </div>
         </div>
         <span className={`state-badge state-${device.last_state}`}>{stateLabel}</span>
       </div>

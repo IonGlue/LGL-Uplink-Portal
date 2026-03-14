@@ -12,6 +12,7 @@ export interface Device {
   id: string;
   device_id: string;
   hostname: string;
+  nickname?: string | null;
   version: string;
   status: "online" | "offline";
   last_state: string;
@@ -54,11 +55,28 @@ export interface EncoderStats {
   resolution: string;
 }
 
+/** A discovered V4L2 capture device. */
+export interface CaptureDeviceInfo {
+  /** Device path, e.g. "/dev/video0" */
+  path: string;
+  /** Human-readable name, e.g. "HD Pro Webcam C920" */
+  name: string;
+}
+
+/** A network interface with IP addresses. */
+export interface InterfaceInfo {
+  name: string;
+  ip_addresses: string[];
+  mac_address: string | null;
+  is_up: boolean;
+}
+
 /** Full config snapshot reported by the device in every telemetry push. */
 export interface DeviceConfigSnapshot {
   pipeline_variant: string;
   capture_device: string;
-  framerate: number;
+  /** SMPTE framerate string, e.g. "29.97", "30", "25" */
+  framerate: string;
   bitrate_min_kbps: number;
   bitrate_max_kbps: number;
   srt_host: string;
@@ -80,9 +98,9 @@ export interface LiveTelemetry {
   /** Full current device configuration — always present in new firmware. */
   config?: DeviceConfigSnapshot;
   /** Available video capture devices on this machine. */
-  available_capture_devices?: string[];
+  available_capture_devices?: CaptureDeviceInfo[];
   /** Available network interfaces on this machine. */
-  available_interfaces?: string[];
+  available_interfaces?: InterfaceInfo[];
   uptime_secs: number;
   age_ms: number;
 }
@@ -98,7 +116,8 @@ export interface DeviceConfig {
   capture_device?: string;
   pipeline?: string;
   resolution?: string;
-  framerate?: number;
+  /** SMPTE framerate string, e.g. "29.97", "30" */
+  framerate?: string;
 
   // Encoder
   bitrate_min_kbps?: number;
@@ -198,6 +217,13 @@ export const api = {
 
   device(id: string) {
     return request<Device>(`/devices/${id}`);
+  },
+
+  updateNickname(id: string, nickname: string | null) {
+    return request<{ ok: boolean }>(`/devices/${id}/nickname`, {
+      method: "PATCH",
+      body: JSON.stringify({ nickname }),
+    });
   },
 
   // Enrollment

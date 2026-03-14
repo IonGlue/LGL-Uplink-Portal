@@ -992,3 +992,140 @@
   border-radius: var(--radius-sm);
   margin-top: 12px;
 }
+
+/* ── Device name / hostname sub ─────────────────────────────── */
+.hostname-block {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.hostname-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Modal hostname sub ─────────────────────────────────────── */
+.modal-title-block {
+  flex: 1;
+  min-width: 0;
+}
+.modal-hostname-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* ── Nickname editing ───────────────────────────────────────── */
+.nickname-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.nickname-input {
+  flex: 1;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+  padding: 6px 10px;
+}
+.nickname-save-btn {
+  padding: 6px 12px;
+  font-size: 12px;
+  width: auto !important;
+  flex-shrink: 0;
+}
+.btn-icon-ghost {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-dim);
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  transition: color 0.15s, background 0.15s;
+}
+.btn-icon-ghost:hover { color: var(--text); background: var(--border); }
+
+/* ── Network interface status ───────────────────────────────── */
+.iface-up   { color: var(--green); font-weight: 500; font-size: 12px; }
+.iface-down { color: var(--text-muted); font-size: 12px; }
+
+/* ── Bitrate sliders ────────────────────────────────────────── */
+.slider-group {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 4px 0;
+}
+
+.slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slider-row label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.slider-value-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.bitrate-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--border);
+  outline: none;
+  cursor: pointer;
+}
+
+.bitrate-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--blue);
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.bitrate-slider::-webkit-slider-thumb:hover {
+  background: #3d5ce0;
+  transform: scale(1.15);
+}
+
+.bitrate-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--blue);
+  cursor: pointer;
+  border: none;
+}
+
+.bitrate-slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--blue) 0%, var(--blue) var(--val, 50%), var(--border) var(--val, 50%));
+}
+
+.slider-value {
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--text);
+  min-width: 72px;
+  text-align: right;
+}
