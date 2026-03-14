@@ -41,6 +41,21 @@ services:
       redis:
         condition: service_healthy
 
+  # Portal frontend (dev mode with HMR — for production, build and serve statically)
+  portal:
+    image: node:22-alpine
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+    environment:
+      # Vite proxies /api/* to this address
+      VITE_API_BASE: http://ingest:8080
+    depends_on:
+      - ingest
+
   # Cloudflare Tunnel — exposes the ingest service through Cloudflare's edge
   # without opening any public inbound ports on this host.
   #
