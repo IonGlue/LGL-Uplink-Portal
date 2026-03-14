@@ -19,14 +19,19 @@ pub struct DeviceFilter {
 }
 
 /// Computed connection status combining WS status + encoder state.
+/// "offline"    – device WebSocket is not connected
+/// "connecting" – device is online but encoder is starting/connecting a stream
+/// "streaming"  – SRT stream is live and pushing to a destination
+/// "online"     – device is connected to portal, encoder is idle/stopped
 fn compute_connection_status(status: &str, last_state: &str) -> String {
     if status != "online" {
         return "offline".to_string();
     }
-    if last_state == "streaming" {
-        return "streaming".to_string();
+    match last_state {
+        "streaming"  => "streaming".to_string(),
+        "starting" | "connecting" => "connecting".to_string(),
+        _ => "online".to_string(),
     }
-    "online".to_string()
 }
 
 #[derive(Serialize)]
@@ -39,7 +44,7 @@ pub struct DeviceResponse {
     pub status: String,
     /// Encoder state: "idle" | "starting" | "streaming" | "stopping" | "error"
     pub last_state: String,
-    /// Combined status: "offline" | "online" | "streaming"
+    /// Combined status: "offline" | "online" | "connecting" | "streaming"
     pub connection_status: String,
     pub last_seen_at: Option<chrono::DateTime<chrono::Utc>>,
     pub assigned_users: Vec<Uuid>,
@@ -73,14 +78,26 @@ async fn enrich_device(device: Device, state: &AppState) -> Result<DeviceRespons
 
 pub async fn list_devices(
     State(state): State<AppState>,
+    AuthUser(claims): AuthUser,
     Query(filter): Query<DeviceFilter>,
 ) -> Result<Json<serde_json::Value>> {
-    let devices = Device::list_all(
-        filter.status.as_deref(),
-        filter.state.as_deref(),
-        &state.db,
-    )
-    .await?;
+    // Admins see all devices; regular users see only their org's devices.
+    let devices = if claims.role == "admin" {
+        Device::list_all(
+            filter.status.as_deref(),
+            filter.state.as_deref(),
+            &state.db,
+        )
+        .await?
+    } else {
+        Device::list_by_org(
+            claims.org_id,
+            filter.status.as_deref(),
+            filter.state.as_deref(),
+            &state.db,
+        )
+        .await?
+    };
 
     let mut responses = Vec::new();
     for d in devices {

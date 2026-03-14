@@ -15,8 +15,8 @@ export interface Device {
   version: string;
   status: "online" | "offline";
   last_state: string;
-  /** Combined status: "offline" | "online" | "streaming" */
-  connection_status: "offline" | "online" | "streaming";
+  /** Combined status: "offline" | "online" | "connecting" | "streaming" */
+  connection_status: "offline" | "online" | "connecting" | "streaming";
   last_seen_at: string | null;
   assigned_users: string[];
   control_claimed_by: string | null;
@@ -54,11 +54,34 @@ export interface EncoderStats {
   resolution: string;
 }
 
+/** Full config snapshot reported by the device in every telemetry push. */
+export interface DeviceConfigSnapshot {
+  capture_device: string;
+  framerate: number;
+  bitrate_min_kbps: number;
+  bitrate_max_kbps: number;
+  srt_host: string;
+  srt_port: number;
+  srt_latency_ms: number;
+  bond_enabled: boolean;
+  bond_relay_host: string | null;
+  bond_relay_port: number | null;
+  bond_local_port: number | null;
+  bond_keepalive_ms: number | null;
+  bond_paths: Array<{ interface: string; priority: number }>;
+}
+
 export interface LiveTelemetry {
   ts: number;
   state: string;
   paths: PathStats[];
   encoder: EncoderStats;
+  /** Full current device configuration — always present in new firmware. */
+  config?: DeviceConfigSnapshot;
+  /** Available video capture devices on this machine. */
+  available_capture_devices?: string[];
+  /** Available network interfaces on this machine. */
+  available_interfaces?: string[];
   uptime_secs: number;
   age_ms: number;
 }
