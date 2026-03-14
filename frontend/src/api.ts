@@ -171,8 +171,10 @@ async function request<T>(
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
 
   if (res.status === 401) {
-    clearToken();
-    window.location.reload();
+    // Don't auto-logout for login attempts — let the caller handle the error
+    if (path !== "/auth/login") {
+      clearToken();
+    }
     throw new ApiError(401, "Unauthorized");
   }
 

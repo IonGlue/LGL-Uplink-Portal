@@ -41,34 +41,31 @@ impl From<User> for UserPublic {
 
 impl User {
     pub async fn find_by_id(id: Uuid, db: &PgPool) -> Result<Option<Self>> {
-        Ok(sqlx::query_as!(
-            User,
+        Ok(sqlx::query_as::<_, User>(
             "SELECT id, email, password_hash, display_name, role, org_id, created_at, updated_at
              FROM users WHERE id = $1",
-            id
         )
+        .bind(id)
         .fetch_optional(db)
         .await?)
     }
 
     pub async fn find_by_email(email: &str, db: &PgPool) -> Result<Option<Self>> {
-        Ok(sqlx::query_as!(
-            User,
+        Ok(sqlx::query_as::<_, User>(
             "SELECT id, email, password_hash, display_name, role, org_id, created_at, updated_at
              FROM users WHERE email = $1",
-            email
         )
+        .bind(email)
         .fetch_optional(db)
         .await?)
     }
 
     pub async fn list_by_org(org_id: Uuid, db: &PgPool) -> Result<Vec<Self>> {
-        Ok(sqlx::query_as!(
-            User,
+        Ok(sqlx::query_as::<_, User>(
             "SELECT id, email, password_hash, display_name, role, org_id, created_at, updated_at
              FROM users WHERE org_id = $1 ORDER BY created_at",
-            org_id
         )
+        .bind(org_id)
         .fetch_all(db)
         .await?)
     }
@@ -81,13 +78,16 @@ impl User {
         org_id: Uuid,
         db: &PgPool,
     ) -> Result<Self> {
-        Ok(sqlx::query_as!(
-            User,
+        Ok(sqlx::query_as::<_, User>(
             "INSERT INTO users (email, password_hash, display_name, role, org_id)
              VALUES ($1, $2, $3, $4, $5)
              RETURNING id, email, password_hash, display_name, role, org_id, created_at, updated_at",
-            email, password_hash, display_name, role, org_id
         )
+        .bind(email)
+        .bind(password_hash)
+        .bind(display_name)
+        .bind(role)
+        .bind(org_id)
         .fetch_one(db)
         .await?)
     }
@@ -98,16 +98,17 @@ impl User {
         role: Option<&str>,
         db: &PgPool,
     ) -> Result<Option<Self>> {
-        Ok(sqlx::query_as!(
-            User,
+        Ok(sqlx::query_as::<_, User>(
             "UPDATE users SET
                 display_name = COALESCE($2, display_name),
                 role = COALESCE($3, role),
                 updated_at = now()
              WHERE id = $1
              RETURNING id, email, password_hash, display_name, role, org_id, created_at, updated_at",
-            id, display_name, role
         )
+        .bind(id)
+        .bind(display_name)
+        .bind(role)
         .fetch_optional(db)
         .await?)
     }
