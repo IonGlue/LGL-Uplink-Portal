@@ -1,10 +1,10 @@
-# LGL-Ingest — Server-Side Platform Specification
-> Complete build specification for the LGL-Ingest service.
+# LGL Uplink Portal — Server-Side Platform Specification
+> Complete build specification for the LGL Uplink Portal service.
 > This document is a self-contained prompt for building the server-side platform
 > that LGL Uplink devices connect to.
 ---
 ## 1. What You Are Building
-**LGL-Ingest** is the server-side platform for the LGL Uplink bonded encoder system. It is a multi-tenant web service that:
+**LGL Uplink Portal** is the server-side platform for the LGL Uplink bonded encoder system. It is a multi-tenant web service that:
 1. Accepts persistent WebSocket connections from field encoder devices
 2. Registers new devices automatically on first connect (phone-home model)
 3. Stores real-time telemetry (per-path network stats, encoder state, uptime)
@@ -16,7 +16,7 @@ The device-side client already exists in the `LGL-Uplink` repository. This spec 
 ## 2. Architecture Overview
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                        LGL-Ingest Server                        │
+│                      LGL Uplink Portal Server                     │
 │                                                                 │
 │  ┌─────────────┐   ┌──────────────┐   ┌────────────────────┐   │
 │  │ WebSocket   │   │  REST API    │   │   Background Jobs  │   │
@@ -571,12 +571,12 @@ Sign with HS256 using a server-side secret (configured via environment variable 
 ## 8. Application Structure
 ### Directory Layout
 ```
-lgl-ingest/
+lgl-uplink-portal/
 ├── Cargo.toml
 ├── Dockerfile
 ├── docker-compose.yml          # Postgres + Redis + app for dev
 ├── config/
-│   └── ingest.example.toml
+│   └── uplink.example.toml
 ├── migrations/
 │   ├── 001_create_organizations.sql
 │   ├── 002_create_users.sql
@@ -625,7 +625,7 @@ lgl-ingest/
         └── device_offline.rs   # Mark devices offline if no heartbeat
 ```
 
-### Config (ingest.toml)
+### Config (uplink.toml)
 ```toml
 [server]
 host = "0.0.0.0"
@@ -634,7 +634,7 @@ port = 8080
 ws_path = "/devices"
 
 [database]
-url = "postgres://ingest:password@localhost:5432/lgl_ingest"
+url = "postgres://uplink:password@localhost:5432/lgl_uplink_portal"
 max_connections = 20
 
 [redis]
@@ -776,10 +776,10 @@ RUN cargo build --release
 
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/target/release/lgl-ingest /usr/local/bin/
-COPY config/ingest.example.toml /etc/lgl-ingest/ingest.toml
+COPY --from=builder /app/target/release/lgl-uplink-portal /usr/local/bin/
+COPY config/uplink.example.toml /etc/lgl-uplink-portal/uplink.toml
 EXPOSE 8080
-CMD ["lgl-ingest", "/etc/lgl-ingest/ingest.toml"]
+CMD ["lgl-uplink-portal", "/etc/lgl-uplink-portal/uplink.toml"]
 ```
 ### docker-compose.yml (Development)
 ```yaml
@@ -787,8 +787,8 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_DB: lgl_ingest
-      POSTGRES_USER: ingest
+      POSTGRES_DB: lgl_uplink_portal
+      POSTGRES_USER: uplink
       POSTGRES_PASSWORD: password
     ports:
       - "5432:5432"
@@ -798,12 +798,12 @@ services:
     image: redis:7-alpine
     ports:
       - "6379:6379"
-  ingest:
+  uplink-portal:
     build: .
     ports:
       - "8080:8080"
     environment:
-      DATABASE_URL: postgres://ingest:password@postgres:5432/lgl_ingest
+      DATABASE_URL: postgres://uplink:password@postgres:5432/lgl_uplink_portal
       REDIS_URL: redis://redis:6379
       JWT_SECRET: dev-secret-change-in-prod
     depends_on:
@@ -859,7 +859,7 @@ async fn test_device_registration() {
 ## 12. Seed Data / Bootstrap
 On first run, the system needs an initial admin user. Use a CLI command:
 ```bash
-lgl-ingest seed --org "Acme Broadcasting" --admin-email admin@example.com --admin-password changeme
+lgl-uplink-portal seed --org "Acme Broadcasting" --admin-email admin@example.com --admin-password changeme
 ```
 This creates the organization and the first admin user. All subsequent users are created via the REST API.
 
@@ -902,7 +902,7 @@ These are noted for awareness but should NOT be implemented in the initial build
 
 ---
 ## 15. Success Criteria
-The LGL-Ingest service is complete when:
+The LGL Uplink Portal service is complete when:
 1. A real LGL Uplink device can connect, register, and push telemetry
 2. The portal REST API supports the full CRUD lifecycle (orgs, users, devices, assignments)
 3. An operator can claim control and send start/stop/bitrate/pipeline commands that reach the device

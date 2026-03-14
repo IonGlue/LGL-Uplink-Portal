@@ -53,11 +53,9 @@ async fn enrich_device(device: Device, state: &AppState) -> Result<DeviceRespons
 
 pub async fn list_devices(
     State(state): State<AppState>,
-    AuthUser(claims): AuthUser,
     Query(filter): Query<DeviceFilter>,
 ) -> Result<Json<serde_json::Value>> {
-    let devices = Device::list_by_org(
-        claims.org_id,
+    let devices = Device::list_all(
         filter.status.as_deref(),
         filter.state.as_deref(),
         &state.db,

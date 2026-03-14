@@ -66,6 +66,25 @@ impl Device {
         .await?)
     }
 
+    pub async fn list_all(
+        status_filter: Option<&str>,
+        state_filter: Option<&str>,
+        db: &PgPool,
+    ) -> Result<Vec<Self>> {
+        Ok(sqlx::query_as!(
+            Device,
+            "SELECT id, device_id, hardware_id, hostname, version, org_id, status,
+                    last_state, last_seen_at, registered_at, updated_at
+             FROM devices
+             WHERE ($1::text IS NULL OR status = $1)
+               AND ($2::text IS NULL OR last_state = $2)
+             ORDER BY registered_at",
+            status_filter, state_filter
+        )
+        .fetch_all(db)
+        .await?)
+    }
+
     pub async fn list_unassigned(db: &PgPool) -> Result<Vec<Self>> {
         Ok(sqlx::query_as!(
             Device,

@@ -51,7 +51,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Check for seed subcommand
     let args: Vec<String> = std::env::args().collect();
-    if args.get(1).map(|s| s.as_str()) == Some("seed") {
+    if args.get(2).map(|s| s.as_str()) == Some("seed") {
         return run_seed(&config, &args).await;
     }
 

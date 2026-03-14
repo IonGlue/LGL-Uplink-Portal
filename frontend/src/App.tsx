@@ -1,51 +1,34 @@
 import { useEffect, useReducer, useRef } from "react";
-import { api, Device, User, ApiError } from "./api";
-import Login from "./components/Login";
+import { api, Device, ApiError } from "./api";
 import DeviceGrid from "./components/DeviceGrid";
 
 const POLL_INTERVAL_MS = 3000;
 
-type Session = { token: string; user: User };
-
 type State =
-  | { phase: "login"; error?: string }
-  | { phase: "loading"; session: Session }
-  | { phase: "ready"; session: Session; devices: Device[]; lastFetch: Date }
-  | { phase: "error"; session: Session; message: string };
+  | { phase: "loading" }
+  | { phase: "ready"; devices: Device[]; lastFetch: Date }
+  | { phase: "error"; message: string };
 
 type Action =
-  | { type: "LOGIN_SUCCESS"; session: Session }
-  | { type: "LOGIN_ERROR"; message: string }
   | { type: "DEVICES_LOADED"; devices: Device[] }
-  | { type: "FETCH_ERROR"; message: string }
-  | { type: "LOGOUT" };
+  | { type: "FETCH_ERROR"; message: string };
 
-function reducer(state: State, action: Action): State {
+function reducer(_state: State, action: Action): State {
   switch (action.type) {
-    case "LOGIN_SUCCESS":
-      return { phase: "loading", session: action.session };
-    case "LOGIN_ERROR":
-      return { phase: "login", error: action.message };
     case "DEVICES_LOADED":
-      if (state.phase === "loading" || state.phase === "ready" || state.phase === "error")
-        return { phase: "ready", session: state.session, devices: action.devices, lastFetch: new Date() };
-      return state;
+      return { phase: "ready", devices: action.devices, lastFetch: new Date() };
     case "FETCH_ERROR":
-      if (state.phase === "loading" || state.phase === "ready" || state.phase === "error")
-        return { phase: "error", session: state.session, message: action.message };
-      return state;
-    case "LOGOUT":
-      return { phase: "login" };
+      return { phase: "error", message: action.message };
   }
 }
 
 export default function App() {
-  const [state, dispatch] = useReducer(reducer, { phase: "login" });
+  const [state, dispatch] = useReducer(reducer, { phase: "loading" });
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  async function fetchDevices(token: string) {
+  async function fetchDevices() {
     try {
-      const data = await api.devices(token);
+      const data = await api.devices();
       dispatch({ type: "DEVICES_LOADED", devices: data.devices });
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Failed to fetch devices";
@@ -54,47 +37,20 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (state.phase === "loading" || state.phase === "ready" || state.phase === "error") {
-      const { token } = state.session;
-      fetchDevices(token);
-      timerRef.current = setInterval(() => fetchDevices(token), POLL_INTERVAL_MS);
-    }
+    fetchDevices();
+    timerRef.current = setInterval(fetchDevices, POLL_INTERVAL_MS);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.phase === "login" ? "login" : state.phase === "loading" ? "loading" : "authed"]);
+  }, []);
 
-  async function handleLogin(email: string, password: string) {
-    try {
-      const res = await api.login(email, password);
-      dispatch({ type: "LOGIN_SUCCESS", session: { token: res.token, user: res.user } });
-    } catch (e) {
-      const msg = e instanceof ApiError
-        ? e.status === 401 ? "Invalid email or password" : e.message
-        : "Login failed";
-      dispatch({ type: "LOGIN_ERROR", message: msg });
-    }
-  }
-
-  if (state.phase === "login") {
-    return <Login onLogin={handleLogin} error={state.error} />;
-  }
-
-  const { session } = state;
   const devices = state.phase === "ready" ? state.devices : [];
   const lastFetch = state.phase === "ready" ? state.lastFetch : null;
 
   return (
     <div className="app">
       <header className="topbar">
-        <span className="topbar-logo">LGL Ingest</span>
-        <div className="topbar-right">
-          <span className="topbar-user">{session.user.display_name}</span>
-          <button className="btn btn-ghost" onClick={() => dispatch({ type: "LOGOUT" })}>
-            Sign out
-          </button>
-        </div>
+        <span className="topbar-logo">LGL Uplink Portal</span>
       </header>
 
       <main className="main">

@@ -13,7 +13,7 @@ ws_path = "/devices"
 trust_cf_connecting_ip = false
 
 [database]
-url = "postgres://ingest:password@localhost:5432/lgl_ingest"
+url = "postgres://uplink:password@localhost:5432/lgl_uplink_portal"
 max_connections = 20
 
 [redis]

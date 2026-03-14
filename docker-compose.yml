@@ -2,15 +2,15 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_DB: lgl_ingest
-      POSTGRES_USER: ingest
+      POSTGRES_DB: lgl_uplink_portal
+      POSTGRES_USER: uplink
       POSTGRES_PASSWORD: password
     ports:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ingest -d lgl_ingest"]
+      test: ["CMD-SHELL", "pg_isready -U uplink -d lgl_uplink_portal"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -25,14 +25,14 @@ services:
       timeout: 5s
       retries: 5
 
-  ingest:
+  uplink-portal:
     build: .
     # No public port exposure — access is only via the cloudflare tunnel.
     # Expose 8080 locally only during development (remove in production).
     ports:
       - "127.0.0.1:8080:8080"
     environment:
-      DATABASE_URL: postgres://ingest:password@postgres:5432/lgl_ingest
+      DATABASE_URL: postgres://uplink:password@postgres:5432/lgl_uplink_portal
       REDIS_URL: redis://redis:6379
       JWT_SECRET: dev-secret-change-in-prod
     depends_on:
@@ -52,15 +52,15 @@ services:
       - ./frontend:/app
     environment:
       # Vite proxies /api/* to this address
-      VITE_API_BASE: http://ingest:8080
+      VITE_API_BASE: http://uplink-portal:8080
     depends_on:
-      - ingest
+      - uplink-portal
 
-  # Cloudflare Tunnel — exposes the ingest service through Cloudflare's edge
+  # Cloudflare Tunnel — exposes the Uplink Portal service through Cloudflare's edge
   # without opening any public inbound ports on this host.
   #
   # Usage:
-  #   1. Create a tunnel: cloudflared tunnel create lgl-ingest
+  #   1. Create a tunnel: cloudflared tunnel create lgl-uplink-portal
   #   2. Copy the credentials JSON to config/cloudflare-tunnel-credentials.json
   #   3. Set CLOUDFLARE_TUNNEL_TOKEN (or use credentials file below)
   #
@@ -72,7 +72,7 @@ services:
     volumes:
       - ./config/cloudflared:/etc/cloudflared:ro
     depends_on:
-      - ingest
+      - uplink-portal
     environment:
       # Alternative to the config file: set the tunnel token directly.
       # Get it from: Cloudflare Zero Trust → Access → Tunnels → your tunnel → Token

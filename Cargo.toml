@@ -1,10 +1,10 @@
 [package]
-name = "lgl-ingest"
+name = "lgl-uplink-portal"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "lgl-ingest"
+name = "lgl-uplink-portal"
 path = "src/main.rs"
 
 [dependencies]

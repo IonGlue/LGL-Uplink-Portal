@@ -1,4 +1,4 @@
-# LGL-Ingest
+# LGL Uplink Portal
 
 Server-side platform for the LGL Uplink bonded encoder system. Accepts persistent WebSocket connections from field encoder devices, stores real-time telemetry, routes commands from authenticated portal users, and provides a REST API for the web dashboard.
 
@@ -15,12 +15,12 @@ See [SPEC.md](./SPEC.md) for the full build specification.
 ## Quick Start (Development)
 
 ```bash
-# Start Postgres + Redis + the ingest service
+# Start Postgres + Redis + the Uplink Portal service
 docker compose up
 
 # Or run locally against the docker infra
 docker compose up postgres redis -d
-cargo run -- config/ingest.example.toml
+cargo run -- config/uplink.example.toml
 
 # Seed the first org and admin user
 cargo run -- seed --org "My Org" --admin-email admin@example.com --admin-password changeme
@@ -64,7 +64,7 @@ See [SPEC.md §5](./SPEC.md#5-websocket-gateway--device-protocol) for the exact 
 
 ## Configuration
 
-Copy `config/ingest.example.toml` and adjust. Environment variables override config file values:
+Copy `config/uplink.example.toml` and adjust. Environment variables override config file values:
 
 | Env Var | Config Key |
 |---------|-----------|

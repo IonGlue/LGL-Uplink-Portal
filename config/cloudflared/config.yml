@@ -1,12 +1,12 @@
-# Cloudflare Tunnel configuration for LGL-Ingest
+# Cloudflare Tunnel configuration for LGL Uplink Portal
 #
 # Setup steps:
 #   1. Install cloudflared: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/
 #   2. Authenticate:        cloudflared tunnel login
-#   3. Create the tunnel:   cloudflared tunnel create lgl-ingest
+#   3. Create the tunnel:   cloudflared tunnel create lgl-uplink-portal
 #   4. Copy credentials:    cp ~/.cloudflared/<tunnel-uuid>.json config/cloudflared/credentials.json
 #   5. Set the tunnel ID below (shown after step 3, or: cloudflared tunnel list)
-#   6. Add DNS routes:      cloudflared tunnel route dns lgl-ingest ingest.lgl-os.com
+#   6. Add DNS routes:      cloudflared tunnel route dns lgl-uplink-portal uplink-portal.lgl-os.com
 #
 # The tunnel creates an outbound-only connection — no inbound ports needed.
 
@@ -16,9 +16,9 @@ credentials-file: /etc/cloudflared/credentials.json
 ingress:
   # WebSocket gateway — device connections
   # Cloudflare handles TLS; traffic arrives at Axum as plain WS
-  - hostname: ingest.lgl-os.com
+  - hostname: uplink-portal.lgl-os.com
     path: /devices
-    service: http://ingest:8080
+    service: http://uplink-portal:8080
     originRequest:
       # Keep WebSocket connections alive through Cloudflare's proxies.
       # The Axum server already pings every 30s, well within this window.
@@ -30,8 +30,8 @@ ingress:
       http2Origin: false   # WebSocket requires HTTP/1.1 upgrade
 
   # REST API — portal dashboard
-  - hostname: ingest.lgl-os.com
-    service: http://ingest:8080
+  - hostname: uplink-portal.lgl-os.com
+    service: http://uplink-portal:8080
 
   # Catch-all (required by cloudflared)
   - service: http_status:404
