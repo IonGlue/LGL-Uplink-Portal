@@ -1,0 +1,5 @@
+api_port            = 9000
+internal_port_start = 10000
+internal_port_end   = 11000
+max_restarts        = 5
+restart_window_secs = 60

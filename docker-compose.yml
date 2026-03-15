@@ -1,82 +1,76 @@
+version: '3.9'
+
 services:
   postgres:
-    image: postgres:16
+    image: postgres:16-alpine
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: lgl_uplink_portal
-      POSTGRES_USER: uplink
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: lgl_ingest
+      POSTGRES_USER: lgl
+      POSTGRES_PASSWORD: lgl
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
     ports:
       - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U uplink -d lgl_uplink_portal"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports:
       - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
 
-  uplink-portal:
-    build: .
-    # No public port exposure — access is only via the cloudflare tunnel.
-    # Expose 8080 locally only during development (remove in production).
-    ports:
-      - "127.0.0.1:8090:8090"
+  # The supervisor uses host networking so it can freely bind to SRT ports
+  # (port 9000 REST API, port 5001 default SRT input, ports 10000-11000 internal routing,
+  #  plus any custom SRT listen ports configured per-source)
+  supervisor:
+    build:
+      context: .
+      dockerfile: Dockerfile.supervisor
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /tmp:/tmp                              # temp config files for worker processes
+      - recordings:/recordings
+      - hls:/var/hls
+      - ./ingest-supervisor/config.toml:/etc/ingest-supervisor/config.toml:ro
     environment:
-      DATABASE_URL: postgres://uplink:password@postgres:5432/lgl_uplink_portal
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: dev-secret-change-in-prod
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+      RUST_LOG: info
 
-  # Portal frontend (dev mode with HMR — for production, build and serve statically)
-  portal:
-    image: node:22-alpine
-    working_dir: /app
-    command: sh -c "npm install && npm run dev -- --host"
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
     ports:
       - "3000:3000"
-    volumes:
-      - ./frontend:/app
     environment:
-      # Vite proxies /api/* to this address
-      VITE_API_BASE: http://uplink-portal:8090
-    depends_on:
-      - uplink-portal
+      DATABASE_URL: postgres://lgl:lgl@postgres:5432/lgl_ingest
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: changeme-in-production
+      # supervisor uses network_mode: host — reach it via host gateway
+      SUPERVISOR_API_URL: http://host.docker.internal:9000
+      CONFIG_PATH: /app/config/ingest.toml
+    extra_hosts:
+      # Allows server container to reach host-networked supervisor on Linux
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ./config:/app/config:ro
 
-  # Cloudflare Tunnel — exposes the Uplink Portal service through Cloudflare's edge
-  # without opening any public inbound ports on this host.
-  #
-  # Usage:
-  #   1. Create a tunnel: cloudflared tunnel create lgl-uplink-portal
-  #   2. Copy the credentials JSON to config/cloudflare-tunnel-credentials.json
-  #   3. Set CLOUDFLARE_TUNNEL_TOKEN (or use credentials file below)
-  #
-  # Comment this service out for local-only development.
-  tunnel:
-    image: cloudflare/cloudflared:latest
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     restart: unless-stopped
-    command: tunnel --protocol http2 --config /etc/cloudflared/config.yml run
-    volumes:
-      - ./config/cloudflared:/etc/cloudflared:ro
     depends_on:
-      - uplink-portal
-    environment:
-      # Alternative to the config file: set the tunnel token directly.
-      # Get it from: Cloudflare Zero Trust → Access → Tunnels → your tunnel → Token
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+      - server
+    ports:
+      - "8080:8080"
+    # No env vars needed — nginx proxies /api and /ws to the server container
 
 volumes:
-  pgdata:
+  postgres_data:
+  recordings:
+  hls:

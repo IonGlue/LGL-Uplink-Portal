@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "ingest-supervisor",
+    "ingest-source",
+    "ingest-dest",
+]
+resolver = "2"

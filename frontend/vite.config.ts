@@ -1,17 +1,12 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 3000,
-    allowedHosts: ["uplink-portal.lgl-os.com"],
     proxy: {
-      // Proxy API calls to the ingest backend so we avoid CORS in dev.
-      "/api": {
-        target: "http://localhost:8090",
-        changeOrigin: true,
-      },
+      '/api': 'http://localhost:3000',
+      '/ws': { target: 'ws://localhost:3000', ws: true },
     },
   },
-});
+})

@@ -1,6 +1,6 @@
-/target
-Cargo.lock
-.env
-logs/
+target/
 node_modules/
 dist/
+*.env
+config/ingest.toml
+/tmp/ingest-*.json
