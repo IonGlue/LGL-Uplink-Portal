@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws'
-import Redis from 'ioredis'
+import { Redis } from 'ioredis'
 import type { AppState, Device, TelemetryReport } from '../types.js'
 import { generateDeviceToken } from '../auth/jwt.js'
 
@@ -169,7 +169,7 @@ async function waitForEnrollment(
       codeInterval = setInterval(() => {
         send(ws, { msg_type: 'enrollment_pending', code, device_uuid: device.id })
       }, 15_000)
-    }).catch((e) => {
+    }).catch((e: unknown) => {
       console.error(`failed to subscribe to ${channel}:`, e)
       finish(false)
     })
@@ -215,7 +215,7 @@ async function waitForVerification(
       reminderInterval = setInterval(() => {
         send(ws, { msg_type: 'verification_pending', code: device.verification_code })
       }, 15_000)
-    }).catch((e) => {
+    }).catch((e: unknown) => {
       console.error(`failed to subscribe to ${channel}:`, e)
       finish(false)
     })
@@ -238,10 +238,10 @@ async function runMainLoop(ws: WebSocket, device: Device, state: AppState) {
   state.wsRegistry.insert(device.id, ws)
 
   const commandSub = new Redis(state.config.redis.url, {
-    retryStrategy: (times) => Math.min(times * 1000, 30_000),
+    retryStrategy: (times: number) => Math.min(times * 1000, 30_000),
   })
   const commandChannel = `commands:${device.id}`
-  commandSub.subscribe(commandChannel).catch((e) => {
+  commandSub.subscribe(commandChannel).catch((e: unknown) => {
     console.error(`failed to subscribe to ${commandChannel}:`, e)
   })
   commandSub.on('message', (_ch: string, message: string) => {

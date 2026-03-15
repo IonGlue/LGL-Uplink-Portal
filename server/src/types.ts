@@ -1,5 +1,5 @@
 import type { Sql } from 'postgres'
-import type Redis from 'ioredis'
+import type { Redis } from 'ioredis'
 import type { WsRegistry } from './ws/registry.js'
 
 export interface Config {
