@@ -19,6 +19,7 @@ import controlRoutes from './api/control.js'
 import assignmentRoutes from './api/assignments.js'
 import telemetryRoutes from './api/telemetry.js'
 import orgRoutes from './api/organizations.js'
+import destinationRoutes from './api/destinations.js'
 
 async function main() {
   // Load config
@@ -89,6 +90,7 @@ async function main() {
   app.route('/api/v1/devices', assignmentRoutes)
   app.route('/api/v1/devices', telemetryRoutes)
   app.route('/api/v1/org', orgRoutes)
+  app.route('/api/v1/destinations', destinationRoutes)
 
   // Start HTTP server
   const server = serve({

@@ -18,10 +18,12 @@ export default function DeviceGrid({ devices, onSelect }: Props) {
     );
   }
 
-  const streaming  = devices.filter((d) => d.connection_status === "streaming");
-  const connecting = devices.filter((d) => d.connection_status === "connecting");
-  const online     = devices.filter((d) => d.connection_status === "online");
-  const offline    = devices.filter((d) => d.connection_status === "offline");
+  const active     = devices.filter((d) => !d.archived);
+  const archived   = devices.filter((d) => d.archived);
+  const streaming  = active.filter((d) => d.connection_status === "streaming");
+  const connecting = active.filter((d) => d.connection_status === "connecting");
+  const online     = active.filter((d) => d.connection_status === "online");
+  const offline    = active.filter((d) => d.connection_status === "offline");
 
   const activeCount = streaming.length + connecting.length + online.length;
   const hasNoActiveConnections = activeCount === 0;
@@ -91,6 +93,19 @@ export default function DeviceGrid({ devices, onSelect }: Props) {
           </h2>
           <div className="device-grid">
             {offline.map((d) => (
+              <DeviceCard key={d.id} device={d} onClick={() => onSelect(d)} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {archived.length > 0 && (
+        <section>
+          <h2 className="section-label section-archived">
+            Archived <span className="count">{archived.length}</span>
+          </h2>
+          <div className="device-grid">
+            {archived.map((d) => (
               <DeviceCard key={d.id} device={d} onClick={() => onSelect(d)} />
             ))}
           </div>

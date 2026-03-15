@@ -3,6 +3,7 @@ import { api, Device, ApiError, User, getToken, setToken, clearToken } from "./a
 import DeviceGrid from "./components/DeviceGrid";
 import DeviceDetail from "./components/DeviceDetail";
 import EnrollmentPanel from "./components/EnrollmentPanel";
+import DestinationsPage from "./components/DestinationsPage";
 import Login from "./components/Login";
 
 const POLL_INTERVAL_MS = 3000;
@@ -39,6 +40,8 @@ function reducer(state: AppState, action: Action): AppState {
 export default function App() {
   const [state, dispatch] = useReducer(reducer, { phase: "auth-check" });
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
+  const [page, setPage] = useState<"encoders" | "destinations">("encoders");
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // On mount: check if we have a stored token
@@ -78,7 +81,7 @@ export default function App() {
   // Poll devices when authenticated
   async function fetchDevices() {
     try {
-      const data = await api.devices();
+      const data = await api.devices(showArchived ? { archived: "true" } : undefined);
       dispatch({ type: "DEVICES_LOADED", devices: data.devices });
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Failed to fetch devices";
@@ -93,7 +96,7 @@ export default function App() {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [state.phase]);
+  }, [state.phase, showArchived]);
 
   // Keep selected device in sync with poll updates
   useEffect(() => {
@@ -124,6 +127,14 @@ export default function App() {
       {/* Top bar */}
       <header className="topbar">
         <span className="topbar-logo">LGL<span className="logo-accent">OS</span></span>
+        <nav className="topbar-nav">
+          <button className={`topbar-nav-btn ${page === "encoders" ? "active" : ""}`} onClick={() => setPage("encoders")}>
+            Encoders
+          </button>
+          <button className={`topbar-nav-btn ${page === "destinations" ? "active" : ""}`} onClick={() => setPage("destinations")}>
+            Destinations
+          </button>
+        </nav>
         <div className="topbar-right">
           <span className="topbar-user">{user.email}</span>
           <span className="topbar-role">{user.role}</span>
@@ -132,27 +143,43 @@ export default function App() {
       </header>
 
       <main className="main">
-        {/* Enrollment banner (admin only) */}
-        {isAdmin && (
-          <EnrollmentPanel onEnrolled={fetchDevices} />
+        {page === "encoders" ? (
+          <>
+            {/* Enrollment banner (admin only) */}
+            {isAdmin && (
+              <EnrollmentPanel onEnrolled={fetchDevices} />
+            )}
+
+            {/* Device list header */}
+            <div className="page-header">
+              <h1>Encoders</h1>
+              {lastFetch && (
+                <span className="last-fetch">Updated {lastFetch.toLocaleTimeString()}</span>
+              )}
+              {isAdmin && (
+                <label className="archive-toggle">
+                  <input
+                    type="checkbox"
+                    checked={showArchived}
+                    onChange={(e) => setShowArchived(e.target.checked)}
+                  />
+                  <span>Show archived</span>
+                </label>
+              )}
+            </div>
+
+            {state.phase === "error" && (
+              <p className="status-msg error">Error: {(state as { message: string }).message}</p>
+            )}
+
+            <DeviceGrid
+              devices={devices}
+              onSelect={(d) => setSelectedDevice(d)}
+            />
+          </>
+        ) : (
+          <DestinationsPage isAdmin={isAdmin} devices={devices} />
         )}
-
-        {/* Device list header */}
-        <div className="page-header">
-          <h1>Encoders</h1>
-          {lastFetch && (
-            <span className="last-fetch">Updated {lastFetch.toLocaleTimeString()}</span>
-          )}
-        </div>
-
-        {state.phase === "error" && (
-          <p className="status-msg error">Error: {(state as { message: string }).message}</p>
-        )}
-
-        <DeviceGrid
-          devices={devices}
-          onSelect={(d) => setSelectedDevice(d)}
-        />
       </main>
 
       {/* Device detail modal */}
@@ -160,6 +187,8 @@ export default function App() {
         <DeviceDetail
           device={selectedDevice}
           onClose={() => setSelectedDevice(null)}
+          onDeviceArchived={() => { fetchDevices(); }}
+          onDeviceDeleted={() => { setSelectedDevice(null); fetchDevices(); }}
           isAdmin={isAdmin}
         />
       )}

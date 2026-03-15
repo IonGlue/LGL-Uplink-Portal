@@ -22,6 +22,7 @@ export interface Device {
   assigned_users: string[];
   control_claimed_by: string | null;
   enrollment_state: string;
+  archived: boolean;
 }
 
 export interface PendingDevice {
@@ -153,6 +154,28 @@ export interface DeviceConfig {
   bond_paths?: BondPath[];
 }
 
+export interface Destination {
+  id: string;
+  name: string;
+  srt_host: string;
+  srt_port: number;
+  srt_latency_ms: number;
+  srt_passphrase_set: boolean;
+  description: string;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DestinationInput {
+  name: string;
+  srt_host: string;
+  srt_port: number;
+  srt_latency_ms?: number;
+  srt_passphrase?: string;
+  description?: string;
+}
+
 // ── Auth token storage ─────────────────────────────────────────────────────────
 
 const TOKEN_KEY = "lgl_token";
@@ -224,7 +247,7 @@ export const api = {
   },
 
   // Devices
-  devices(params?: { status?: string; state?: string }) {
+  devices(params?: { status?: string; state?: string; archived?: string }) {
     const qs = new URLSearchParams(
       Object.entries(params ?? {}).filter(([, v]) => v) as [string, string][]
     ).toString();
@@ -298,10 +321,56 @@ export const api = {
     });
   },
 
+  // Archive / Delete
+  archiveDevice(id: string) {
+    return request<{ archived: boolean }>(`/devices/${id}/archive`, { method: "POST" });
+  },
+
+  unarchiveDevice(id: string) {
+    return request<{ unarchived: boolean }>(`/devices/${id}/unarchive`, { method: "POST" });
+  },
+
+  deleteDevice(id: string) {
+    return request<{ deleted: boolean }>(`/devices/${id}`, { method: "DELETE" });
+  },
+
   // Websocket stream URL helper (auth via query param)
   telemetryStreamUrl(id: string): string {
     const token = getToken() ?? "";
     const proto = window.location.protocol === "https:" ? "wss" : "ws";
     return `${proto}://${window.location.host}/api/v1/devices/${id}/telemetry/stream?token=${token}`;
+  },
+
+  // Destinations
+  destinations(search?: string) {
+    const qs = search ? `?search=${encodeURIComponent(search)}` : "";
+    return request<{ destinations: Destination[] }>(`/destinations${qs}`);
+  },
+
+  createDestination(input: DestinationInput) {
+    return request<Destination>("/destinations", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  },
+
+  updateDestination(id: string, input: Partial<DestinationInput>) {
+    return request<Destination>(`/destinations/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(input),
+    });
+  },
+
+  deleteDestination(id: string) {
+    return request<{ deleted: boolean }>(`/destinations/${id}`, {
+      method: "DELETE",
+    });
+  },
+
+  deployDestination(destinationId: string, deviceId: string) {
+    return request<{ deployed: boolean; destination: string; device_id: string }>(
+      `/destinations/${destinationId}/deploy/${deviceId}`,
+      { method: "POST" },
+    );
   },
 };

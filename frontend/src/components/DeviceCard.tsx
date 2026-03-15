@@ -50,13 +50,18 @@ export default function DeviceCard({ device, onClick }: Props) {
 
   return (
     <div
-      className={`device-card ${cs}`}
+      className={`device-card ${cs}${device.archived ? " archived" : ""}`}
       onClick={onClick}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => e.key === "Enter" && onClick()}
     >
-      {isOffline && (
+      {device.archived && (
+        <div className="archived-banner">
+          <span>Archived</span>
+        </div>
+      )}
+      {isOffline && !device.archived && (
         <div className="offline-banner">
           <span className="offline-banner-icon">!</span>
           <span>Offline</span>

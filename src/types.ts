@@ -171,6 +171,20 @@ export interface EncoderStats {
   resolution: string
 }
 
+export interface Destination {
+  id: string
+  org_id: string
+  name: string
+  srt_host: string
+  srt_port: number
+  srt_latency_ms: number
+  srt_passphrase: string | null
+  description: string
+  created_by: string | null
+  created_at: Date
+  updated_at: Date
+}
+
 export interface AuditEntry {
   id: number
   actor_type: string

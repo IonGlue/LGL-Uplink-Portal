@@ -31,17 +31,17 @@ export default function EnrollmentPanel({ onEnrolled }: Props) {
   if (devices.length === 0) return null;
 
   async function handleEnroll() {
-    if (!selected || codeInput.length !== 5) return;
+    if (!selected || codeInput.length !== 10) return;
     setBusy(true);
     setError(null);
     try {
       await api.enrollDevice(selected.id, codeInput);
       // Also assign to org automatically
       await api.claimDeviceToOrg(selected.id).catch(() => {});
-      setSuccess(`${selected.hostname} enrolled successfully.`);
+      // Remove the enrolled device from the list immediately so the panel updates
+      setDevices((prev) => prev.filter((d) => d.id !== selected.id));
       setSelected(null);
       setCodeInput("");
-      load();
       onEnrolled();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Enrollment failed");

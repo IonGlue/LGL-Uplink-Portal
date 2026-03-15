@@ -5,6 +5,8 @@ interface Props {
   device: Device;
   onClose: () => void;
   onNicknameChange?: (id: string, nickname: string | null) => void;
+  onDeviceArchived?: () => void;
+  onDeviceDeleted?: () => void;
   isAdmin: boolean;
 }
 
@@ -72,7 +74,7 @@ function configFromSnapshot(snap: DeviceConfigSnapshot): DeviceConfig {
   };
 }
 
-export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmin }: Props) {
+export default function DeviceDetail({ device, onClose, onNicknameChange, onDeviceArchived, onDeviceDeleted, isAdmin }: Props) {
   const [telemetry, setTelemetry] = useState<LiveTelemetry | null>(null);
   const [tab, setTab] = useState<"overview" | "network" | "settings" | "streaming" | "control">("overview");
   const [cmdBusy, setCmdBusy] = useState(false);
@@ -95,6 +97,12 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
   const [nicknameDraft, setNicknameDraft] = useState(device.nickname ?? "");
   const [nicknameEditing, setNicknameEditing] = useState(false);
   const [nicknameBusy, setNicknameBusy] = useState(false);
+
+  // Archive / delete
+  const [archiveBusy, setArchiveBusy] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const [dangerMsg, setDangerMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const configSeeded = useRef(false);
@@ -244,6 +252,39 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
       // ignore — nickname update failure is non-critical
     } finally {
       setNicknameBusy(false);
+    }
+  }
+
+  async function handleArchive() {
+    setArchiveBusy(true);
+    setDangerMsg(null);
+    try {
+      if (device.archived) {
+        await api.unarchiveDevice(device.id);
+        setDangerMsg({ ok: true, text: "Device restored from archive." });
+      } else {
+        await api.archiveDevice(device.id);
+        setDangerMsg({ ok: true, text: "Device archived." });
+      }
+      onDeviceArchived?.();
+    } catch (e) {
+      setDangerMsg({ ok: false, text: e instanceof ApiError ? e.message : "Failed" });
+    } finally {
+      setArchiveBusy(false);
+    }
+  }
+
+  async function handleDelete() {
+    setDeleteBusy(true);
+    setDangerMsg(null);
+    try {
+      await api.deleteDevice(device.id);
+      onDeviceDeleted?.();
+      onClose();
+    } catch (e) {
+      setDangerMsg({ ok: false, text: e instanceof ApiError ? e.message : "Failed to delete" });
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -867,6 +908,73 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
               </div>
               {cmdMsg && (
                 <p className={cmdMsg.ok ? "cmd-success" : "cmd-error"}>{cmdMsg.text}</p>
+              )}
+            </div>
+          )}
+
+          {/* ── Danger Zone (admin only) ────────────────────────── */}
+          {isAdmin && (
+            <div className="danger-zone">
+              <h3 className="danger-zone-title">Danger Zone</h3>
+
+              <div className="danger-zone-actions">
+                {/* Archive / Unarchive */}
+                <div className="danger-action">
+                  <div className="danger-action-info">
+                    <span className="danger-action-label">
+                      {device.archived ? "Restore device" : "Archive device"}
+                    </span>
+                    <span className="danger-action-desc">
+                      {device.archived
+                        ? "Move this device back to the active list."
+                        : "Hide this device from the main view. It can be restored later."}
+                    </span>
+                  </div>
+                  <button
+                    className={`btn ${device.archived ? "btn-secondary" : "btn-warning"}`}
+                    disabled={archiveBusy}
+                    onClick={handleArchive}
+                  >
+                    {archiveBusy ? "..." : device.archived ? "Restore" : "Archive"}
+                  </button>
+                </div>
+
+                {/* Permanent delete (only if archived) */}
+                {device.archived && (
+                  <div className="danger-action">
+                    <div className="danger-action-info">
+                      <span className="danger-action-label">Delete device permanently</span>
+                      <span className="danger-action-desc">
+                        This will permanently remove the device and all its data. This action cannot be undone.
+                      </span>
+                    </div>
+                    {!deleteConfirm ? (
+                      <button className="btn btn-danger" onClick={() => setDeleteConfirm(true)}>
+                        Delete
+                      </button>
+                    ) : (
+                      <div className="delete-confirm-row">
+                        <button
+                          className="btn btn-danger"
+                          disabled={deleteBusy}
+                          onClick={handleDelete}
+                        >
+                          {deleteBusy ? "Deleting..." : "Confirm delete"}
+                        </button>
+                        <button
+                          className="btn btn-secondary"
+                          onClick={() => setDeleteConfirm(false)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {dangerMsg && (
+                <p className={dangerMsg.ok ? "cmd-success" : "cmd-error"}>{dangerMsg.text}</p>
               )}
             </div>
           )}
