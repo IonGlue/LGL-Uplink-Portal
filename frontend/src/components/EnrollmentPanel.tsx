@@ -3,9 +3,10 @@ import { api, ApiError, PendingDevice } from "../api";
 
 interface Props {
   onEnrolled: () => void;
+  onCountChange?: (count: number) => void;
 }
 
-export default function EnrollmentPanel({ onEnrolled }: Props) {
+export default function EnrollmentPanel({ onEnrolled, onCountChange }: Props) {
   const [devices, setDevices] = useState<PendingDevice[]>([]);
   const [selected, setSelected] = useState<PendingDevice | null>(null);
   const [codeInput, setCodeInput] = useState("");
@@ -28,7 +29,9 @@ export default function EnrollmentPanel({ onEnrolled }: Props) {
     return () => clearInterval(t);
   }, []);
 
-  if (devices.length === 0) return null;
+  useEffect(() => {
+    onCountChange?.(devices.length);
+  }, [devices.length]);
 
   async function handleEnroll() {
     if (!selected || codeInput.length !== 10) return;
@@ -63,6 +66,14 @@ export default function EnrollmentPanel({ onEnrolled }: Props) {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (devices.length === 0) {
+    return (
+      <div className="enrollment-empty">
+        <p className="enrollment-empty-msg">No new encoders waiting for approval.</p>
+      </div>
+    );
   }
 
   return (

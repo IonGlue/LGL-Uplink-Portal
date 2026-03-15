@@ -41,7 +41,8 @@ export default function App() {
   const [state, dispatch] = useReducer(reducer, { phase: "auth-check" });
   const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
   const [showArchived, setShowArchived] = useState(false);
-  const [page, setPage] = useState<"encoders" | "destinations">("encoders");
+  const [page, setPage] = useState<"encoders" | "new-encoders" | "destinations">("encoders");
+  const [pendingCount, setPendingCount] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // On mount: check if we have a stored token
@@ -131,6 +132,12 @@ export default function App() {
           <button className={`topbar-nav-btn ${page === "encoders" ? "active" : ""}`} onClick={() => setPage("encoders")}>
             Encoders
           </button>
+          {isAdmin && (
+            <button className={`topbar-nav-btn ${page === "new-encoders" ? "active" : ""}`} onClick={() => setPage("new-encoders")}>
+              New Encoders
+              {pendingCount > 0 && <span className="nav-badge">{pendingCount}</span>}
+            </button>
+          )}
           <button className={`topbar-nav-btn ${page === "destinations" ? "active" : ""}`} onClick={() => setPage("destinations")}>
             Destinations
           </button>
@@ -143,14 +150,8 @@ export default function App() {
       </header>
 
       <main className="main">
-        {page === "encoders" ? (
+        {page === "encoders" && (
           <>
-            {/* Enrollment banner (admin only) */}
-            {isAdmin && (
-              <EnrollmentPanel onEnrolled={fetchDevices} />
-            )}
-
-            {/* Device list header */}
             <div className="page-header">
               <h1>Encoders</h1>
               {lastFetch && (
@@ -177,7 +178,18 @@ export default function App() {
               onSelect={(d) => setSelectedDevice(d)}
             />
           </>
-        ) : (
+        )}
+
+        {page === "new-encoders" && isAdmin && (
+          <>
+            <div className="page-header">
+              <h1>New Encoders</h1>
+            </div>
+            <EnrollmentPanel onEnrolled={fetchDevices} onCountChange={setPendingCount} />
+          </>
+        )}
+
+        {page === "destinations" && (
           <DestinationsPage isAdmin={isAdmin} devices={devices} />
         )}
       </main>

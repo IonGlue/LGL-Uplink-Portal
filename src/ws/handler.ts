@@ -75,15 +75,42 @@ export async function handleDeviceConnection(ws: WebSocket, state: AppState) {
     const existing = await db`
       SELECT * FROM devices WHERE device_id = ${register.device_id}
     `
-    const verificationCode = register.verification_code ?? null
+    const verificationCode = register.verification_code?.toUpperCase() ?? null
     if (existing.length === 0) {
-      // Use the first 12 characters of the device-id as the enrollment code.
+      // Use the first 10 characters of the device-id as the enrollment code.
       // On Linux this is derived from /etc/machine-id, so the admin can
       // confirm the code by looking at the device's machine-id.
-      const code = register.device_id.slice(0, 12)
+      const code = register.device_id.slice(0, 10).toUpperCase()
       const [d] = await db`
         INSERT INTO devices (device_id, hardware_id, hostname, version, status, last_seen_at, enrollment_state, enrollment_code, verification_code, verification_state)
         VALUES (${register.device_id}, ${register.hardware_id}, ${register.hostname}, ${register.version}, 'online', now(), 'pending', ${code}, ${verificationCode}, 'unverified')
+        RETURNING *
+      `
+      device = d as Device
+      isNew = true
+    } else if (existing[0].archived) {
+      // Archived device reconnecting — reset to fresh pending state so it goes
+      // through the new-connection workflow again rather than silently resuming.
+      const code = register.device_id.slice(0, 10).toUpperCase()
+      const [d] = await db`
+        UPDATE devices SET
+          hardware_id = ${register.hardware_id},
+          hostname = ${register.hostname},
+          version = ${register.version},
+          status = 'online',
+          last_seen_at = now(),
+          updated_at = now(),
+          archived = false,
+          org_id = NULL,
+          enrollment_state = 'pending',
+          enrollment_code = ${code},
+          enrolled_at = NULL,
+          enrolled_by = NULL,
+          verification_code = ${verificationCode},
+          verification_state = 'unverified',
+          verified_at = NULL,
+          verified_by = NULL
+        WHERE id = ${existing[0].id}
         RETURNING *
       `
       device = d as Device
@@ -199,7 +226,10 @@ async function waitForEnrollment(
       send(ws, { msg_type: 'enrollment_pending', code, device_uuid: device.id })
 
       pingInterval = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) ws.ping()
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.ping()
+          state.db`UPDATE devices SET last_seen_at = now() WHERE id = ${device.id}`.catch(() => {})
+        }
       }, 30_000)
 
       codeInterval = setInterval(() => {
@@ -254,7 +284,10 @@ async function waitForVerification(
       send(ws, { msg_type: 'verification_pending', code: device.verification_code })
 
       pingInterval = setInterval(() => {
-        if (ws.readyState === WebSocket.OPEN) ws.ping()
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.ping()
+          state.db`UPDATE devices SET last_seen_at = now() WHERE id = ${device.id}`.catch(() => {})
+        }
       }, 30_000)
 
       // Resend reminder every 15s in case the device missed it

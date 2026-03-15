@@ -43,7 +43,7 @@ function shortId(id: string): string {
 }
 
 export default function DeviceCard({ device, onClick }: Props) {
-  const cs = device.connection_status; // "offline" | "online" | "connecting" | "streaming"
+  const cs = device.connection_status; // "offline" | "online" | "connecting" | "streaming" | "awaiting-adoption"
   const stateLabel = STATE_LABELS[device.last_state] ?? device.last_state;
   const lastSeen = useRelativeTime(device.last_seen_at);
   const isOffline = cs === "offline";
@@ -96,6 +96,7 @@ export default function DeviceCard({ device, onClick }: Props) {
             {cs === "streaming" ? "Streaming"
               : cs === "connecting" ? "Connecting"
               : cs === "online" ? "Online"
+              : cs === "awaiting-adoption" ? "Awaiting adoption"
               : "Offline"}
           </dd>
         </div>

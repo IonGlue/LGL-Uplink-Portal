@@ -3,8 +3,9 @@ import type { AppEnv, Device } from '../types.js'
 import { AppError } from '../error.js'
 import { authMiddleware, requireAdmin } from '../auth/middleware.js'
 
-function computeConnectionStatus(status: string, lastState: string): string {
+function computeConnectionStatus(status: string, lastState: string, verificationState: string): string {
   if (status !== 'online') return 'offline'
+  if (verificationState !== 'verified') return 'awaiting-adoption'
   if (lastState === 'streaming') return 'streaming'
   if (lastState === 'starting' || lastState === 'connecting') return 'connecting'
   return 'online'
@@ -37,7 +38,8 @@ async function enrichDevice(device: Device, state: any) {
     version: device.version,
     status: device.status,
     last_state: device.last_state,
-    connection_status: computeConnectionStatus(device.status, device.last_state),
+    connection_status: computeConnectionStatus(device.status, device.last_state, device.verification_state),
+    verification_code: device.verification_state !== 'verified' ? device.verification_code : undefined,
     last_seen_at: device.last_seen_at,
     assigned_users: assignedUsers.map((r: any) => r.user_id),
     control_claimed_by: controlClaimedBy,
@@ -61,6 +63,7 @@ devices.get('/', async (c) => {
       WHERE (${status}::text IS NULL OR status = ${status})
         AND (${stateFilter}::text IS NULL OR last_state = ${stateFilter})
         AND (${includeArchived} OR archived = false)
+        AND enrollment_state != 'pending'
       ORDER BY registered_at
     ` as Device[]
   } else {
@@ -70,6 +73,7 @@ devices.get('/', async (c) => {
         AND (${status}::text IS NULL OR status = ${status})
         AND (${stateFilter}::text IS NULL OR last_state = ${stateFilter})
         AND (${includeArchived} OR archived = false)
+        AND enrollment_state != 'pending'
       ORDER BY registered_at
     ` as Device[]
   }
@@ -150,7 +154,7 @@ devices.post('/:id/verify', async (c) => {
       updated_at = now()
     WHERE id = ${deviceId}
       AND enrollment_state = 'enrolled'
-      AND verification_code = ${code}
+      AND UPPER(verification_code) = UPPER(${code})
       AND status = 'online'
   `
   if (result.count === 0) {

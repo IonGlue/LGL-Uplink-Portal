@@ -20,6 +20,8 @@
   --yellow-dim:   #78350f;
   --blue:         #8B5CF6;
   --blue-dim:     #2e1065;
+  --cyan:         #06B6D4;
+  --cyan-dim:     #0e3a42;
   --orange:       #f97316;
   --orange-dim:   #7c2d12;
   --purple:       #8B5CF6;
@@ -175,6 +177,10 @@
   border-left: 3px solid var(--green);
 }
 
+.device-card.awaiting-adoption {
+  border-left: 3px solid var(--cyan);
+}
+
 .device-card.offline {
   border-left: 4px solid var(--red);
   background: color-mix(in srgb, var(--bg-card) 85%, var(--red) 15%);
@@ -249,7 +255,8 @@
   animation: pulse 2s ease-in-out infinite;
 }
 
-.dot-offline { background: var(--red); }
+.dot-offline          { background: var(--red); }
+.dot-awaiting-adoption { background: var(--cyan); }
 
 @keyframes pulse {
   0%, 100% { opacity: 1; }
@@ -266,10 +273,11 @@
   font-size: 12px;
   font-weight: 500;
 }
-.conn-streaming  { color: var(--purple); }
-.conn-connecting { color: var(--amber); }
-.conn-online     { color: var(--green); }
-.conn-offline    { color: var(--red); font-weight: 600; }
+.conn-streaming         { color: var(--purple); }
+.conn-connecting        { color: var(--amber); }
+.conn-online            { color: var(--green); }
+.conn-offline           { color: var(--red); font-weight: 600; }
+.conn-awaiting-adoption { color: var(--cyan); }
 
 /* ── State badge ───────────────────────────────────────────────── */
 .state-badge {
@@ -1301,6 +1309,82 @@
   color: var(--blue);
   border-bottom-color: var(--blue);
 }
+
+.nav-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 6px;
+  border-radius: 9px;
+  background: var(--yellow);
+  color: #000;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  vertical-align: middle;
+}
+
+.enrollment-empty {
+  padding: 48px 0;
+  text-align: center;
+}
+
+.enrollment-empty-msg {
+  color: var(--text-muted);
+  font-size: 14px;
+}
+
+.adoption-prompt {
+  background: var(--cyan-dim);
+  border: 1px solid var(--cyan);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+}
+
+.adoption-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.adoption-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cyan);
+}
+
+.adoption-code {
+  font-family: monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.1em;
+}
+
+.adoption-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
+.btn-adopt {
+  background: var(--cyan);
+  color: #000;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 20px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn-adopt:hover:not(:disabled) { opacity: 0.85; }
+.btn-adopt:disabled { opacity: 0.4; cursor: not-allowed; }
 
 /* ── Destinations page ────────────────────────────────────── */
 .dest-search-bar {

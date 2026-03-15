@@ -93,6 +93,11 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, onDevi
   // SRT URL paste — passphrase hint (not sent to device, shown for reference)
   const [srtPassphraseHint, setSrtPassphraseHint] = useState<string | null>(null);
 
+  // Verification
+  const [verifyCode, setVerifyCode] = useState("");
+  const [verifyBusy, setVerifyBusy] = useState(false);
+  const [verifyError, setVerifyError] = useState<string | null>(null);
+
   // Nickname editing
   const [nicknameDraft, setNicknameDraft] = useState(device.nickname ?? "");
   const [nicknameEditing, setNicknameEditing] = useState(false);
@@ -108,6 +113,20 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, onDevi
   const configSeeded = useRef(false);
 
   const isOffline = device.connection_status === "offline";
+  const needsAdoption = isAdmin && device.connection_status === "awaiting-adoption";
+
+  async function handleAdopt() {
+    if (!device.verification_code) return;
+    setVerifyBusy(true);
+    setVerifyError(null);
+    try {
+      await api.verifyDevice(device.id, device.verification_code);
+    } catch (e) {
+      setVerifyError(e instanceof Error ? e.message : "Adoption failed");
+    } finally {
+      setVerifyBusy(false);
+    }
+  }
 
   // Live telemetry via WebSocket, REST fallback + immediate seed fetch
   useEffect(() => {
@@ -410,6 +429,26 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, onDevi
 
           {/* ── Overview ──────────────────────────────────────────── */}
           {tab === "overview" && (
+            <>
+            {needsAdoption && (
+              <div className="adoption-prompt">
+                <div className="adoption-header">
+                  <span className="adoption-title">Awaiting adoption</span>
+                  {device.verification_code && (
+                    <span className="adoption-code">{device.verification_code}</span>
+                  )}
+                </div>
+                <p className="adoption-hint">Confirm the code matches what's shown on the encoder, then adopt it.</p>
+                <button
+                  className="btn btn-adopt"
+                  onClick={handleAdopt}
+                  disabled={verifyBusy || !device.verification_code}
+                >
+                  {verifyBusy ? "Adopting…" : "Adopt encoder"}
+                </button>
+                {verifyError && <p className="login-error" style={{ marginTop: 8 }}>{verifyError}</p>}
+              </div>
+            )}
             <div className="stat-grid">
               <Stat label="Device ID"  value={device.device_id.slice(0, 16) + "…"} />
               <Stat label="Version"    value={device.version} />
@@ -441,6 +480,7 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, onDevi
                 </div>
               )}
             </div>
+            </>
           )}
 
           {/* ── Network ───────────────────────────────────────────── */}

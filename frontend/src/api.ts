@@ -16,12 +16,14 @@ export interface Device {
   version: string;
   status: "online" | "offline";
   last_state: string;
-  /** Combined status: "offline" | "online" | "connecting" | "streaming" */
-  connection_status: "offline" | "online" | "connecting" | "streaming";
+  /** Combined status: "offline" | "online" | "connecting" | "streaming" | "awaiting-adoption" */
+  connection_status: "offline" | "online" | "connecting" | "streaming" | "awaiting-adoption";
   last_seen_at: string | null;
   assigned_users: string[];
   control_claimed_by: string | null;
   enrollment_state: string;
+  verification_state: string;
+  verification_code?: string;
   archived: boolean;
 }
 
@@ -280,6 +282,13 @@ export const api = {
   rejectDevice(id: string) {
     return request<{ rejected: boolean }>(`/devices/${id}/reject`, {
       method: "POST",
+    });
+  },
+
+  verifyDevice(id: string, code: string) {
+    return request<{ verified: boolean }>(`/devices/${id}/verify`, {
+      method: "POST",
+      body: JSON.stringify({ code }),
     });
   },
 
