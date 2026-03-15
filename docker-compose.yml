@@ -1,0 +1,70 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lgl_ingest
+      POSTGRES_USER: lgl
+      POSTGRES_PASSWORD: lgl
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  supervisor:
+    build:
+      context: .
+      dockerfile: Dockerfile.supervisor
+    restart: unless-stopped
+    network_mode: host
+    volumes:
+      - /tmp:/tmp
+      - recordings:/recordings
+      - hls:/var/hls
+    environment:
+      RUST_LOG: info
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - supervisor
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgres://lgl:lgl@postgres:5432/lgl_ingest
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: changeme-in-production
+      SUPERVISOR_API_URL: http://supervisor:9000
+      CONFIG_PATH: /app/config/ingest.toml
+    volumes:
+      - ./config:/app/config:ro
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "8080:8080"
+    environment:
+      VITE_API_BASE: http://server:3000
+
+volumes:
+  postgres_data:
+  recordings:
+  hls:

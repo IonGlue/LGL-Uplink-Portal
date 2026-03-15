@@ -1,0 +1,27 @@
+# LGL Ingest — example configuration
+# Copy to config/ingest.toml and adjust values
+
+[server]
+host = "0.0.0.0"
+port = 3000
+ws_path = "/ws/device"
+
+[database]
+url = "postgres://lgl:lgl@localhost:5432/lgl_ingest"
+max_connections = 20
+
+[redis]
+url = "redis://localhost:6379"
+
+[auth]
+jwt_secret = "change-this-to-a-random-secret-in-production"
+device_token_ttl = 3600   # seconds
+user_token_ttl = 86400    # seconds
+
+[telemetry]
+history_ttl_hours = 48
+prune_interval = 3600     # seconds between prune runs
+db_sample_rate = 10       # store 1 in N telemetry messages to DB
+
+[supervisor]
+api_url = "http://127.0.0.1:9000"
