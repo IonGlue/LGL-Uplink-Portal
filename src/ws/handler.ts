@@ -9,14 +9,6 @@ function send(ws: WebSocket, data: Record<string, unknown>) {
   }
 }
 
-function generateCode(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-  let code = ''
-  for (let i = 0; i < 10; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)]
-  }
-  return code
-}
 
 function waitForMessage(ws: WebSocket, timeoutMs: number): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -85,7 +77,10 @@ export async function handleDeviceConnection(ws: WebSocket, state: AppState) {
     `
     const verificationCode = register.verification_code ?? null
     if (existing.length === 0) {
-      const code = generateCode()
+      // Use the first 12 characters of the device-id as the enrollment code.
+      // On Linux this is derived from /etc/machine-id, so the admin can
+      // confirm the code by looking at the device's machine-id.
+      const code = register.device_id.slice(0, 12)
       const [d] = await db`
         INSERT INTO devices (device_id, hardware_id, hostname, version, status, last_seen_at, enrollment_state, enrollment_code, verification_code, verification_state)
         VALUES (${register.device_id}, ${register.hardware_id}, ${register.hostname}, ${register.version}, 'online', now(), 'pending', ${code}, ${verificationCode}, 'unverified')

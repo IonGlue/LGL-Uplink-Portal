@@ -28,6 +28,10 @@ async function enrichDevice(device: Device, state: any) {
   return {
     id: device.id,
     device_id: device.device_id,
+    // display_name is the human-readable label: prefer the admin-set nickname,
+    // fall back to the first 12 chars of the device-id (which on Linux comes
+    // from /etc/machine-id and is stable across reboots).
+    display_name: device.nickname ?? device.device_id.slice(0, 12),
     hostname: device.hostname,
     nickname: device.nickname,
     version: device.version,
