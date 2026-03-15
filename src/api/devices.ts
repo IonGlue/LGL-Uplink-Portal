@@ -205,7 +205,7 @@ devices.delete('/:id', async (c) => {
   requireAdmin(user)
   const deviceId = c.req.param('id')
   const [device] = await state.db`SELECT * FROM devices WHERE id = ${deviceId}` as Device[]
-  if (!device || device.org_id !== user.org_id) throw AppError.notFound()
+  if (!device) throw AppError.notFound()
   if (!device.archived) throw AppError.validation('device must be archived before it can be deleted')
 
   state.wsRegistry.remove(deviceId)
@@ -224,7 +224,7 @@ devices.post('/:id/archive', async (c) => {
   requireAdmin(user)
   const deviceId = c.req.param('id')
   const [device] = await state.db`SELECT * FROM devices WHERE id = ${deviceId}` as Device[]
-  if (!device || device.org_id !== user.org_id) throw AppError.notFound()
+  if (!device) throw AppError.notFound()
 
   await state.db`UPDATE devices SET archived = true, updated_at = now() WHERE id = ${deviceId}`
 
@@ -241,7 +241,7 @@ devices.post('/:id/unarchive', async (c) => {
   requireAdmin(user)
   const deviceId = c.req.param('id')
   const [device] = await state.db`SELECT * FROM devices WHERE id = ${deviceId}` as Device[]
-  if (!device || device.org_id !== user.org_id) throw AppError.notFound()
+  if (!device) throw AppError.notFound()
 
   await state.db`UPDATE devices SET archived = false, updated_at = now() WHERE id = ${deviceId}`
 
