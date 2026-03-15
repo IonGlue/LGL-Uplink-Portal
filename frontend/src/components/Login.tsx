@@ -21,7 +21,7 @@ export default function Login({ onLogin, error }: Props) {
     <div className="login-page">
       <div className="login-card">
         <div className="login-logo">
-          <span className="logo-text">LGL</span>
+          <span className="logo-text">LGL<span className="logo-accent">OS</span></span>
           <span className="logo-sub">Uplink Portal</span>
         </div>
 

@@ -334,7 +334,7 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
                     <span className="modal-hostname-sub">{device.hostname}</span>
                   )}
                   {isAdmin && (
-                    <button className="btn-icon-ghost" title="Edit name" onClick={() => setNicknameEditing(true)}>✎</button>
+                    <button className="btn-icon-ghost" title="Edit name" onClick={() => setNicknameEditing(true)}>Edit</button>
                   )}
                 </>
               )}
@@ -344,13 +344,13 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
               )}
             </div>
           </div>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="modal-close" onClick={onClose}>x</button>
         </div>
 
         {/* Offline banner */}
         {isOffline && (
           <div className="modal-offline-strip">
-            <span>⚠ Device offline — last seen {device.last_seen_at
+            <span>Device offline — last seen {device.last_seen_at
               ? new Date(device.last_seen_at).toLocaleString()
               : "never"}. Settings shown are last known values.</span>
           </div>
@@ -664,7 +664,7 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
                             value={p.priority}
                             onChange={(e) => updatePath(i, "priority", Number(e.target.value))} />
                         </div>
-                        <button type="button" className="btn-remove-path" onClick={() => removePath(i)}>✕</button>
+                        <button type="button" className="btn-remove-path" onClick={() => removePath(i)}>x</button>
                       </div>
                     ))}
                     <button type="button" className="btn btn-secondary" style={{ width: "auto", marginTop: 4 }}
@@ -799,7 +799,7 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
                       Passphrase
                       {telemetry?.config?.srt_passphrase_set === true && (
                         <span className="settings-hint" style={{ marginLeft: 8, color: "var(--color-yellow, #EAB308)" }}>
-                          ● currently set
+                          currently set
                         </span>
                       )}
                       {telemetry?.config?.srt_passphrase_set === false && (
@@ -854,15 +854,15 @@ export default function DeviceDetail({ device, onClose, onNicknameChange, isAdmi
               <div className="control-grid">
                 <button className="btn btn-success" disabled={cmdBusy || isOffline}
                   onClick={() => sendCmd({ cmd: "start" })}>
-                  ▶ Start Encoder
+                  Start Encoder
                 </button>
                 <button className="btn btn-danger" disabled={cmdBusy || isOffline}
                   onClick={() => sendCmd({ cmd: "stop" })}>
-                  ■ Stop Encoder
+                  Stop Encoder
                 </button>
                 <button className="btn btn-secondary" disabled={cmdBusy || isOffline}
                   onClick={() => sendCmd({ cmd: "restart" })}>
-                  ↺ Restart Encoder
+                  Restart Encoder
                 </button>
               </div>
               {cmdMsg && (

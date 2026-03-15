@@ -123,7 +123,7 @@ export default function App() {
     <div className="app">
       {/* Top bar */}
       <header className="topbar">
-        <span className="topbar-logo">LGL Uplink Portal</span>
+        <span className="topbar-logo">LGL<span className="logo-accent">OS</span></span>
         <div className="topbar-right">
           <span className="topbar-user">{user.email}</span>
           <span className="topbar-role">{user.role}</span>

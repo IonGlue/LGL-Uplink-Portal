@@ -68,7 +68,7 @@ export default function EnrollmentPanel({ onEnrolled }: Props) {
   return (
     <div className="enrollment-banner">
       <div className="enrollment-header">
-        <span className="enrollment-icon">⚡</span>
+        <span className="enrollment-icon">*</span>
         <span className="enrollment-title">
           {devices.length} encoder{devices.length !== 1 ? "s" : ""} waiting for approval
         </span>

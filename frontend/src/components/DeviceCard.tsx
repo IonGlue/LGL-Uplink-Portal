@@ -58,7 +58,7 @@ export default function DeviceCard({ device, onClick }: Props) {
     >
       {isOffline && (
         <div className="offline-banner">
-          <span className="offline-banner-icon">⚠</span>
+          <span className="offline-banner-icon">!</span>
           <span>Offline</span>
         </div>
       )}

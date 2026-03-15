@@ -2,29 +2,29 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:           #0f1117;
-  --bg-card:      #1a1d27;
-  --bg-card-hover:#1f2330;
-  --border:       #2a2d3a;
-  --border-focus: #4a6cf7;
+  --bg:           #141418;
+  --bg-card:      #1E1E2A;
+  --bg-card-hover:#282838;
+  --border:       #323244;
+  --border-focus: #8B5CF6;
 
-  --text:         #e8eaf0;
-  --text-muted:   #7a7f96;
-  --text-dim:     #4a4f66;
+  --text:         #EEEEF2;
+  --text-muted:   #8E8E9F;
+  --text-dim:     #555566;
 
-  --green:        #22c55e;
-  --green-dim:    #14532d;
-  --red:          #ef4444;
+  --green:        #10B981;
+  --green-dim:    #064e3b;
+  --red:          #EF4444;
   --red-dim:      #7f1d1d;
-  --yellow:       #eab308;
-  --yellow-dim:   #713f12;
-  --blue:         #4a6cf7;
-  --blue-dim:     #1e2a66;
+  --yellow:       #F59E0B;
+  --yellow-dim:   #78350f;
+  --blue:         #8B5CF6;
+  --blue-dim:     #2e1065;
   --orange:       #f97316;
   --orange-dim:   #7c2d12;
-  --purple:       #a855f7;
-  --purple-dim:   #4c1d95;
-  --amber:        #f59e0b;
+  --purple:       #8B5CF6;
+  --purple-dim:   #2e1065;
+  --amber:        #F59E0B;
   --amber-dim:    #78350f;
 
   --radius:       10px;
@@ -159,7 +159,7 @@
 
 .device-card:hover, .device-card:focus-visible {
   background: var(--bg-card-hover);
-  border-color: #3a3f55;
+  border-color: #40405a;
   outline: none;
 }
 
@@ -365,7 +365,7 @@
   color: #fff;
   width: 100%;
 }
-.btn-primary:not(:disabled):hover { background: #3d5ce0; }
+.btn-primary:not(:disabled):hover { background: #7c3aed; }
 
 .btn-success {
   background: var(--green);
@@ -383,7 +383,7 @@
   background: var(--border);
   color: var(--text);
 }
-.btn-secondary:not(:disabled):hover { background: #3a3f55; }
+.btn-secondary:not(:disabled):hover { background: #40405a; }
 
 .btn-ghost {
   background: transparent;
@@ -400,7 +400,7 @@
   justify-content: center;
   padding: 24px;
   background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, #1a2560 0%, transparent 70%),
+    radial-gradient(ellipse 80% 50% at 50% -20%, #2e1065 0%, transparent 70%),
     var(--bg);
 }
 
@@ -427,6 +427,8 @@
   letter-spacing: 0.1em;
   color: var(--text);
 }
+
+.logo-accent { color: var(--blue); }
 
 .logo-sub {
   font-size: 12px;
@@ -521,7 +523,7 @@
   transition: border-color 0.15s, background 0.15s;
 }
 
-.enrollment-device-btn:hover { background: #2f3347; }
+.enrollment-device-btn:hover { background: #323244; }
 .enrollment-device-btn.selected {
   border-color: var(--yellow);
   background: var(--yellow-dim);
@@ -1102,7 +1104,7 @@
 }
 
 .bitrate-slider::-webkit-slider-thumb:hover {
-  background: #3d5ce0;
+  background: #7c3aed;
   transform: scale(1.15);
 }
 
