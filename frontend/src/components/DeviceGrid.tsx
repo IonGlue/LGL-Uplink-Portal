@@ -23,8 +23,28 @@ export default function DeviceGrid({ devices, onSelect }: Props) {
   const online     = devices.filter((d) => d.connection_status === "online");
   const offline    = devices.filter((d) => d.connection_status === "offline");
 
+  const activeCount = streaming.length + connecting.length + online.length;
+  const hasNoActiveConnections = activeCount === 0;
+
   return (
     <div className="device-grid-wrapper">
+      {hasNoActiveConnections && (
+        <div className="no-connections-screen">
+          <p className="no-connections-title">No Connections</p>
+          <div className="no-connections-stats">
+            <div className="no-connections-stat">
+              <span className="no-connections-stat-value">{devices.length}</span>
+              <span className="no-connections-stat-label">Adapters</span>
+            </div>
+            <div className="no-connections-stat-divider" />
+            <div className="no-connections-stat">
+              <span className="no-connections-stat-value">{activeCount}</span>
+              <span className="no-connections-stat-label">Active Connections</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {streaming.length > 0 && (
         <section>
           <h2 className="section-label section-streaming">
