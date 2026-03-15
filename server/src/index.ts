@@ -35,13 +35,17 @@ const state: AppState = { db, redis, config, wsRegistry, startedAt }
 
 const app = new Hono<AppEnv>()
 
-app.use('*', cors({ origin: '*', allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] }))
+const corsOrigin = process.env.CORS_ORIGIN || '*'
+app.use('*', cors({ origin: corsOrigin, allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'] }))
 
 // Inject state into every request
 app.use('*', async (c, next) => {
   c.set('state', state)
   await next()
 })
+
+// Health check
+app.get('/health', (c) => c.json({ status: 'ok' }))
 
 // REST API routes
 app.route('/api/auth', authRouter)
