@@ -38,6 +38,7 @@ function NavBtn({ label, active, onClick }: { label: string; active: boolean; on
 export default function App() {
   const [authed, setAuthed] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [localLogin, setLocalLogin] = useState(false)
   const [view, setView] = useState<View>('patchbay')
 
   useEffect(() => {
@@ -49,15 +50,33 @@ export default function App() {
       window.history.replaceState({}, '', window.location.pathname)
     }
 
-    if (!localStorage.getItem('token')) { setLoading(false); return }
-    api.me()
-      .then(() => setAuthed(true))
-      .catch(() => { localStorage.removeItem('token') })
-      .finally(() => setLoading(false))
+    async function init() {
+      // If we already have a token, try to verify it first
+      if (localStorage.getItem('token')) {
+        try {
+          await api.me()
+          setAuthed(true)
+          return
+        } catch {
+          localStorage.removeItem('token')
+        }
+      }
+
+      // No valid token — check which auth mode is active
+      const config = await api.getConfig().catch(() => ({ local_login: true, portal_url: undefined }))
+      if (!config.local_login && config.portal_url) {
+        // Logto mode: redirect to the tenant portal
+        window.location.href = `${config.portal_url}?redirect_uri=${encodeURIComponent(window.location.href)}`
+        return
+      }
+      setLocalLogin(true)
+    }
+
+    init().finally(() => setLoading(false))
   }, [])
 
   if (loading) return <div style={{ padding: '2rem', color: '#94a3b8' }}>Loading...</div>
-  if (!authed) return <Login onLogin={() => setAuthed(true)} />
+  if (!authed && localLogin) return <Login onLogin={() => setAuthed(true)} />
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0f1117' }}>

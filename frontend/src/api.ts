@@ -23,6 +23,8 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 export const api = {
   // Auth
+  getConfig: () =>
+    request<{ local_login: boolean; portal_url?: string }>('GET', '/auth/config'),
   login: (email: string, password: string) =>
     request<{ token: string; user: unknown }>('POST', '/auth/login', { email, password }),
   me: () => request<{ id: string; email: string; role: string; display_name: string }>('GET', '/auth/me'),
