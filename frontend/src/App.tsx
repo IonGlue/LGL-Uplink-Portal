@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
 import { api } from './api.js'
 import Login from './components/Login.js'
-import Patchbay from './components/Patchbay.js'
-import VirtualRack from './components/VirtualRack.js'
+import RackPatchbay from './components/RackPatchbay.js'
 import Redistribute from './components/Redistribute.js'
 
-type View = 'patchbay' | 'rack' | 'redistribute'
+type View = 'rack' | 'redistribute'
 
 const NAV_STYLE: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 0,
@@ -39,7 +38,7 @@ export default function App() {
   const [authed, setAuthed] = useState(false)
   const [loading, setLoading] = useState(true)
   const [localLogin, setLocalLogin] = useState(false)
-  const [view, setView] = useState<View>('patchbay')
+  const [view, setView] = useState<View>('rack')
 
   useEffect(() => {
     // Pick up ?token= injected by the portal and persist it
@@ -83,14 +82,13 @@ export default function App() {
       {/* Top nav */}
       <div style={NAV_STYLE}>
         <span style={{ fontWeight: 700, fontSize: 14, color: '#e2e8f0', marginRight: 16 }}>LGL Ingest</span>
-        <NavBtn label="Patchbay" active={view === 'patchbay'} onClick={() => setView('patchbay')} />
-        <NavBtn label="Virtual Rack" active={view === 'rack'} onClick={() => setView('rack')} />
+        <NavBtn label="Rack" active={view === 'rack'} onClick={() => setView('rack')} />
         <NavBtn label="Redistribute" active={view === 'redistribute'} onClick={() => setView('redistribute')} />
       </div>
 
       {/* View */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        {view === 'patchbay' ? <Patchbay /> : view === 'rack' ? <VirtualRack /> : <Redistribute />}
+        {view === 'rack' ? <RackPatchbay /> : <Redistribute />}
       </div>
     </div>
   )
