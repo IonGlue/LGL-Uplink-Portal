@@ -4,7 +4,7 @@ import { AppError } from '../error.js'
 import { authMiddleware, requireOperatorOrAbove } from '../auth/middleware.js'
 import { IngestClient } from '../ingest/client.js'
 
-const VALID_SOURCE_TYPES = ['encoder', 'srt_listen', 'srt_pull', 'rtmp_pull', 'test_pattern', 'placeholder']
+const VALID_SOURCE_TYPES = ['encoder', 'srt_listen', 'srt_pull', 'test_pattern', 'placeholder']
 
 const app = new Hono<AppEnv>()
 
@@ -34,7 +34,7 @@ app.post('/', async (c) => {
   const { db } = c.var.state
   const config = body.config ?? {}
 
-  const [source] = await db`
+  let [source] = await db`
     INSERT INTO sources (name, source_type, device_id, config, position_x, position_y)
     VALUES (
       ${body.name},
@@ -50,7 +50,20 @@ app.post('/', async (c) => {
   // Register with supervisor (skip for placeholder — no process needed)
   if (body.source_type !== 'placeholder') {
     try {
-      await client(c).createSource({ id: source.id, name: source.name, source_type: source.source_type, config })
+      const supervisorSource = await client(c).createSource({
+        id: source.id,
+        name: source.name,
+        source_type: source.source_type,
+        config,
+      }) as { internal_port?: number }
+      // Write the supervisor-assigned internal_port back to the DB so
+      // destinations and the UI can always find it without querying the supervisor.
+      if (supervisorSource?.internal_port != null) {
+        await c.var.state.db`
+          UPDATE sources SET internal_port = ${supervisorSource.internal_port} WHERE id = ${source.id}
+        `
+        source = { ...source, internal_port: supervisorSource.internal_port }
+      }
     } catch (e) {
       console.error('failed to register source with supervisor:', e)
     }
@@ -103,12 +116,17 @@ app.delete('/:id', async (c) => {
 app.post('/:id/start', async (c) => {
   requireOperatorOrAbove(c.var.user)
   const id = c.req.param('id')
-  const [source] = await c.var.state.db`SELECT id, source_type FROM sources WHERE id = ${id}`
+  const { db } = c.var.state
+  const [source] = await db`SELECT id, source_type FROM sources WHERE id = ${id}`
   if (!source) throw AppError.notFound()
   if (source.source_type === 'placeholder') throw AppError.validation('cannot start a placeholder source')
 
   try {
     const result = await client(c).startSource(id)
+    await db`
+      INSERT INTO audit_log (actor_type, actor_id, action, target_type, target_id)
+      VALUES ('user', ${c.var.user.sub}, 'source.start', 'source', ${id})
+    `.catch(() => {})
     return c.json(result)
   } catch (e) {
     throw AppError.internal(String(e))
@@ -118,12 +136,17 @@ app.post('/:id/start', async (c) => {
 app.post('/:id/stop', async (c) => {
   requireOperatorOrAbove(c.var.user)
   const id = c.req.param('id')
-  const [source] = await c.var.state.db`SELECT id, source_type FROM sources WHERE id = ${id}`
+  const { db } = c.var.state
+  const [source] = await db`SELECT id, source_type FROM sources WHERE id = ${id}`
   if (!source) throw AppError.notFound()
   if (source.source_type === 'placeholder') throw AppError.validation('cannot stop a placeholder source')
 
   try {
     const result = await client(c).stopSource(id)
+    await db`
+      INSERT INTO audit_log (actor_type, actor_id, action, target_type, target_id)
+      VALUES ('user', ${c.var.user.sub}, 'source.stop', 'source', ${id})
+    `.catch(() => {})
     return c.json(result)
   } catch (e) {
     throw AppError.internal(String(e))

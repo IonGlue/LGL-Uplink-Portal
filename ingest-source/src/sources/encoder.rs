@@ -97,12 +97,6 @@ fn is_srt_ack(data: &[u8]) -> bool {
     data.len() >= 2 && u16::from_be_bytes([data[0], data[1]]) == 0x8002
 }
 
-fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
-    if a.len() != b.len() { return false; }
-    let mut diff = 0u8;
-    for (x, y) in a.iter().zip(b.iter()) { diff |= x ^ y; }
-    diff == 0
-}
 
 struct SenderPath {
     addr: SocketAddr,
@@ -216,15 +210,16 @@ impl RelayState {
             }
             SrtlaType::Reg2 => {
                 let Some(full_id) = parse_id(data) else { return; };
+                // The HashMap lookup already validates the full_id (sender-half +
+                // server-random-half).  A missing entry means the group was never
+                // created (no prior REG1) or has expired, so reply NGP.
                 if let Some(group) = self.groups.get_mut(&full_id) {
-                    if constant_time_eq(&group.full_id, &full_id) {
-                        if group.add_path(from) {
-                            self.addr_to_id.insert(from, full_id);
-                            info!("REG2 from {from}: path added to group");
-                            let _ = self.socket.send_to(&build_reg3(), from).await;
-                        } else {
-                            let _ = self.socket.send_to(&build_reg_err(), from).await;
-                        }
+                    if group.add_path(from) {
+                        self.addr_to_id.insert(from, full_id);
+                        info!("REG2 from {from}: path added to group");
+                        let _ = self.socket.send_to(&build_reg3(), from).await;
+                    } else {
+                        let _ = self.socket.send_to(&build_reg_err(), from).await;
                     }
                 } else {
                     let _ = self.socket.send_to(&build_reg_ngp(), from).await;

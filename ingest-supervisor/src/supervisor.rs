@@ -10,7 +10,8 @@ use tokio::sync::RwLock;
 
 use crate::config::Config;
 use crate::port_pool::PortPool;
-use crate::routing::{DestSlot, DestStatus, RoutingSnapshot, RoutingTable, SourceSlot, SourceStatus, SyncGroup};
+use crate::routing::{DestSlot, DestStatus, RoutingTable, SourceSlot, SourceStatus,
+                     SyncGroup, SyncGroupStatus, RoutingSnapshot};
 
 #[derive(Debug)]
 pub struct WorkerHandle {
@@ -30,10 +31,10 @@ pub enum WorkerKind {
 }
 
 pub struct Supervisor {
-    config: Config,
-    port_pool: Arc<RwLock<PortPool>>,
-    routing: Arc<RwLock<RoutingTable>>,
-    workers: HashMap<String, WorkerHandle>,
+    pub config: Config,
+    pub routing: Arc<RwLock<RoutingTable>>,
+    pub workers: HashMap<String, WorkerHandle>,
+    _port_pool: Arc<RwLock<PortPool>>,
 }
 
 impl Supervisor {
@@ -44,9 +45,9 @@ impl Supervisor {
     ) -> Self {
         Self {
             config,
-            port_pool,
             routing,
             workers: HashMap::new(),
+            _port_pool: port_pool,
         }
     }
 
@@ -64,41 +65,33 @@ impl Supervisor {
 
         let config_str = serde_json::to_string(&worker_config)?;
 
-        info!("starting source worker: {} (type={})", source.id, source.source_type);
-
-        let child = tokio::process::Command::new(&self.config.source_binary)
-            .stdin(std::process::Stdio::piped())
-            .stdout(std::process::Stdio::inherit())
-            .stderr(std::process::Stdio::inherit())
-            .spawn()?;
-
-        // Write config to stdin
-        // Note: we pass config via a temp file to avoid stdin complexity with async
         let config_path = format!("/tmp/ingest-source-{}.json", source.id);
         std::fs::write(&config_path, &config_str)?;
 
-        // Re-spawn with config file arg
+        info!("starting source worker: {} (type={})", source.id, source.source_type);
+
         let child = tokio::process::Command::new(&self.config.source_binary)
             .arg(&config_path)
             .stdout(std::process::Stdio::inherit())
             .stderr(std::process::Stdio::inherit())
             .spawn()?;
 
-        let handle = WorkerHandle {
+        let pid = child.id();
+
+        self.workers.insert(source.id.clone(), WorkerHandle {
             id: source.id.clone(),
             kind: WorkerKind::Source,
             process: child,
             restart_count: 0,
             last_restart: None,
             error: false,
-        };
+        });
 
-        self.workers.insert(source.id.clone(), handle);
-
-        // Update source status
+        // Update source status and PID
         let mut routing = self.routing.write().await;
         if let Some(s) = routing.sources.get_mut(&source.id) {
             s.status = SourceStatus::Active;
+            s.process_pid = pid;
         }
 
         Ok(())
@@ -124,31 +117,28 @@ impl Supervisor {
             .stderr(std::process::Stdio::inherit())
             .spawn()?;
 
-        let handle = WorkerHandle {
+        let pid = child.id();
+
+        self.workers.insert(dest.id.clone(), WorkerHandle {
             id: dest.id.clone(),
             kind: WorkerKind::Dest,
             process: child,
             restart_count: 0,
             last_restart: None,
             error: false,
-        };
-
-        self.workers.insert(dest.id.clone(), handle);
+        });
 
         let mut routing = self.routing.write().await;
         if let Some(d) = routing.dests.get_mut(&dest.id) {
             d.status = DestStatus::Active;
+            d.process_pid = pid;
         }
 
         Ok(())
     }
 
     /// Spawn an `ingest-sync` worker for the given sync group.
-    ///
-    /// The caller must have already allocated aligned ports and populated
-    /// `group.aligned_ports` before calling this.
     pub async fn start_sync_group(&mut self, group: &SyncGroup, routing: &RoutingSnapshot) -> Result<()> {
-        // Build the JSON config for the ingest-sync binary.
         let streams: Vec<serde_json::Value> = group.source_ids.iter().filter_map(|sid| {
             let source_port = routing.sources.get(sid)?.internal_port?;
             let output_port = group.aligned_ports.get(sid)?;
@@ -198,122 +188,152 @@ impl Supervisor {
         }
     }
 
-    /// Main supervision loop: monitors worker processes and restarts crashed ones.
-    pub async fn supervision_loop(&mut self) -> Result<()> {
-        let mut check_interval = tokio::time::interval(Duration::from_secs(2));
+    pub fn worker_count(&self) -> usize {
+        self.workers.len()
+    }
+}
 
-        loop {
-            check_interval.tick().await;
+/// Main supervision loop.
+///
+/// Takes the `Arc` directly so it can acquire the write-lock **briefly**
+/// per 2-second poll tick and release it between ticks and during
+/// restart back-off sleeps.  This prevents the permanent lock-hold that
+/// would deadlock every API handler.
+pub async fn run_supervision_loop(supervisor: Arc<RwLock<Supervisor>>) -> Result<()> {
+    let mut check_interval = tokio::time::interval(Duration::from_secs(2));
 
-            let mut crashed: Vec<(String, WorkerKind)> = Vec::new();
+    loop {
+        check_interval.tick().await;
 
-            for (id, handle) in &mut self.workers {
+        // --- brief lock: collect crashed worker IDs then release ---
+        let crashed: Vec<(String, WorkerKind)> = {
+            let mut sup = supervisor.write().await;
+            let mut out = Vec::new();
+            for (id, handle) in &mut sup.workers {
                 match handle.process.try_wait() {
                     Ok(Some(status)) => {
-                        if handle.error {
-                            continue; // already marked as errored out
+                        if !handle.error {
+                            warn!("worker {id} exited with status: {status}");
+                            out.push((id.clone(), handle.kind.clone()));
                         }
-                        warn!("worker {id} exited with status: {status}");
-                        crashed.push((id.clone(), handle.kind.clone()));
                     }
-                    Ok(None) => {} // still running
+                    Ok(None) => {}
                     Err(e) => {
                         warn!("worker {id} wait error: {e}");
                     }
                 }
             }
+            out
+        }; // write lock released here
 
-            for (id, kind) in crashed {
-                self.handle_crash(&id, &kind).await;
-            }
+        for (id, kind) in crashed {
+            do_restart(supervisor.clone(), &id, &kind).await;
         }
     }
+}
 
-    async fn handle_crash(&mut self, id: &str, kind: &WorkerKind) {
-        let max_restarts = self.config.supervisor.max_restarts;
-        let restart_window = Duration::from_secs(self.config.supervisor.restart_window_secs);
-
-        let handle = match self.workers.get_mut(id) {
+/// Handles crash detection, back-off sleep (without holding any lock),
+/// and worker restart.
+async fn do_restart(supervisor: Arc<RwLock<Supervisor>>, id: &str, kind: &WorkerKind) {
+    // Read config and restart state without holding the lock over the sleep.
+    let (max_restarts, restart_window, restart_count, last_restart) = {
+        let sup = supervisor.read().await;
+        let h = match sup.workers.get(id) {
             Some(h) => h,
             None => return,
         };
+        let max = sup.config.supervisor.max_restarts;
+        let window = Duration::from_secs(sup.config.supervisor.restart_window_secs);
+        (max, window, h.restart_count, h.last_restart)
+    }; // read lock released
 
-        // Reset restart counter if outside the window
-        if let Some(last) = handle.last_restart {
-            if last.elapsed() > restart_window {
-                handle.restart_count = 0;
-            }
+    // Reset counter if last crash was outside the window.
+    let effective_count = match last_restart {
+        Some(t) if t.elapsed() > restart_window => 0,
+        _ => restart_count,
+    };
+
+    if effective_count >= max_restarts {
+        error!("worker {id} exceeded max restarts ({max_restarts}), giving up");
+        let mut sup = supervisor.write().await;
+        if let Some(h) = sup.workers.get_mut(id) {
+            h.error = true;
         }
-
-        if handle.restart_count >= max_restarts {
-            error!("worker {id} exceeded max restarts ({max_restarts}), giving up");
-            handle.error = true;
-
-            // Update status in routing table
-            let mut routing = self.routing.write().await;
-            match kind {
-                WorkerKind::Source => {
-                    if let Some(s) = routing.sources.get_mut(id) {
-                        s.status = SourceStatus::Error;
-                    }
-                }
-                WorkerKind::Dest => {
-                    if let Some(d) = routing.dests.get_mut(id) {
-                        d.status = DestStatus::Error;
-                    }
-                }
-            }
-            return;
-        }
-
-        // Exponential backoff: 1s, 2s, 4s, 8s, 16s
-        let delay = Duration::from_secs(1 << handle.restart_count.min(4));
-        handle.restart_count += 1;
-        handle.last_restart = Some(Instant::now());
-
-        info!("restarting worker {id} (attempt {}) after {}s", handle.restart_count, delay.as_secs());
-        tokio::time::sleep(delay).await;
-
-        // Re-read source/dest config from routing table and restart
-        let routing_r = self.routing.read().await;
+        let mut routing = sup.routing.write().await;
         match kind {
             WorkerKind::Source => {
-                if let Some(source) = routing_r.sources.get(id).cloned() {
-                    drop(routing_r);
-                    if let Err(e) = self.start_source(&source).await {
-                        error!("failed to restart source {id}: {e}");
-                    }
-                }
+                if let Some(s) = routing.sources.get_mut(id) { s.status = SourceStatus::Error; }
             }
             WorkerKind::Dest => {
-                if let Some(dest) = routing_r.dests.get(id).cloned() {
-                    let source_id = routing_r.source_for_dest(id);
-                    let source_port = source_id.and_then(|sid| {
-                        routing_r.effective_port_for_source(&sid)
-                    });
-                    drop(routing_r);
-                    if let Some(port) = source_port {
-                        if let Err(e) = self.start_dest(&dest, port).await {
-                            error!("failed to restart dest {id}: {e}");
-                        }
-                    } else {
-                        warn!("cannot restart dest {id}: source not found or has no port");
-                    }
-                }
+                if let Some(d) = routing.dests.get_mut(id) { d.status = DestStatus::Error; }
             }
             WorkerKind::Sync => {
-                if let Some(group) = routing_r.sync_groups.get(id).cloned() {
-                    let snapshot = routing_r.clone_for_sync();
-                    drop(routing_r);
-                    if let Err(e) = self.start_sync_group(&group, &snapshot).await {
-                        error!("failed to restart sync group {id}: {e}");
+                if let Some(g) = routing.sync_groups.get_mut(id) { g.status = SyncGroupStatus::Error; }
+            }
+        }
+        return;
+    }
+
+    // Record the restart attempt before sleeping.
+    {
+        let mut sup = supervisor.write().await;
+        if let Some(h) = sup.workers.get_mut(id) {
+            h.restart_count = effective_count + 1;
+            h.last_restart  = Some(Instant::now());
+        }
+    } // write lock released
+
+    // Exponential back-off: 1 s, 2 s, 4 s, 8 s, 16 s — NO lock held.
+    let delay = Duration::from_secs(1 << effective_count.min(4));
+    info!("restarting worker {id} (attempt {}) after {}s", effective_count + 1, delay.as_secs());
+    tokio::time::sleep(delay).await;
+
+    // Re-read routing state and restart the worker.
+    let mut sup = supervisor.write().await;
+    match kind {
+        WorkerKind::Source => {
+            let source = sup.routing.read().await.sources.get(id).cloned();
+            if let Some(source) = source {
+                if let Err(e) = sup.start_source(&source).await {
+                    error!("failed to restart source {id}: {e}");
+                }
+            }
+        }
+        WorkerKind::Dest => {
+            let (dest, source_port) = {
+                let routing = sup.routing.read().await;
+                let dest = routing.dests.get(id).cloned();
+                let source_port = routing.source_for_dest(id)
+                    .and_then(|sid| routing.effective_port_for_source(&sid));
+                (dest, source_port)
+            };
+            if let (Some(dest), Some(port)) = (dest, source_port) {
+                if let Err(e) = sup.start_dest(&dest, port).await {
+                    error!("failed to restart dest {id}: {e}");
+                }
+            } else {
+                warn!("cannot restart dest {id}: source not found or has no port");
+            }
+        }
+        WorkerKind::Sync => {
+            let (group, snapshot) = {
+                let routing = sup.routing.read().await;
+                let group = routing.sync_groups.get(id).cloned();
+                let snapshot = routing.clone_for_sync();
+                (group, snapshot)
+            };
+            if let Some(group) = group {
+                match sup.start_sync_group(&group, &snapshot).await {
+                    Ok(_) => {
+                        let mut routing = sup.routing.write().await;
+                        if let Some(g) = routing.sync_groups.get_mut(id) {
+                            g.status = SyncGroupStatus::Active;
+                        }
                     }
+                    Err(e) => error!("failed to restart sync group {id}: {e}"),
                 }
             }
         }
     }
-
-    pub fn worker_count(&self) -> usize {
-        self.workers.len()
-    }
+    // supervisor write lock released here
 }

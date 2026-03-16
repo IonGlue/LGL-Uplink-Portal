@@ -185,15 +185,30 @@ app.delete('/:id', async (c) => {
 app.post('/:id/start', async (c) => {
   requireOperatorOrAbove(c.var.user)
   const id = c.req.param('id')
-  const [group] = await c.var.state.db`SELECT id FROM sync_groups WHERE id = ${id}`
+  const { db } = c.var.state
+  const [group] = await db`SELECT id FROM sync_groups WHERE id = ${id}`
   if (!group) throw AppError.notFound()
 
   try {
     const result = await client(c).startSyncGroup(id)
-    await c.var.state.db`UPDATE sync_groups SET status = 'active' WHERE id = ${id}`
+    await db`UPDATE sync_groups SET status = 'active' WHERE id = ${id}`
+
+    // Persist the supervisor-assigned aligned ports so they survive a restart.
+    if (result.aligned_ports && typeof result.aligned_ports === 'object') {
+      // Clear stale entries first, then insert fresh assignments.
+      await db`DELETE FROM sync_group_ports WHERE sync_group_id = ${id}`
+      for (const [sourceId, port] of Object.entries(result.aligned_ports)) {
+        await db`
+          INSERT INTO sync_group_ports (sync_group_id, source_id, aligned_port)
+          VALUES (${id}, ${sourceId}, ${port as number})
+          ON CONFLICT (sync_group_id, source_id) DO UPDATE SET aligned_port = EXCLUDED.aligned_port
+        `
+      }
+    }
+
     return c.json(result)
   } catch (e) {
-    await c.var.state.db`UPDATE sync_groups SET status = 'error' WHERE id = ${id}`
+    await db`UPDATE sync_groups SET status = 'error' WHERE id = ${id}`
     throw AppError.internal(String(e))
   }
 })
@@ -201,12 +216,14 @@ app.post('/:id/start', async (c) => {
 app.post('/:id/stop', async (c) => {
   requireOperatorOrAbove(c.var.user)
   const id = c.req.param('id')
-  const [group] = await c.var.state.db`SELECT id FROM sync_groups WHERE id = ${id}`
+  const { db } = c.var.state
+  const [group] = await db`SELECT id FROM sync_groups WHERE id = ${id}`
   if (!group) throw AppError.notFound()
 
   try {
     const result = await client(c).stopSyncGroup(id)
-    await c.var.state.db`UPDATE sync_groups SET status = 'idle' WHERE id = ${id}`
+    await db`UPDATE sync_groups SET status = 'idle' WHERE id = ${id}`
+    await db`DELETE FROM sync_group_ports WHERE sync_group_id = ${id}`
     return c.json(result)
   } catch (e) {
     throw AppError.internal(String(e))

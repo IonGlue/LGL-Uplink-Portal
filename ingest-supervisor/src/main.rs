@@ -42,10 +42,12 @@ async fn main() -> Result<()> {
         routing.clone(),
     )));
 
-    // Start the supervision loop in background
+    // Start the supervision loop in background.
+    // It takes the Arc directly and acquires the lock only briefly per tick,
+    // so API handlers are never blocked waiting for the supervision lock.
     let sup_clone = supervisor.clone();
     tokio::spawn(async move {
-        if let Err(e) = sup_clone.write().await.supervision_loop().await {
+        if let Err(e) = supervisor::run_supervision_loop(sup_clone).await {
             log::error!("supervision loop error: {e}");
         }
     });

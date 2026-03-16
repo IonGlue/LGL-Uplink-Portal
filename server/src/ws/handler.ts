@@ -160,6 +160,11 @@ async function waitForEnrollment(
       }
     })
 
+    sub.on('error', (e: Error) => {
+      console.error(`enrollment Redis error for ${device.id}:`, e)
+      finish(false)
+    })
+
     const onClose = () => finish(false)
     ws.on('close', onClose)
 
@@ -206,6 +211,11 @@ async function waitForVerification(
       }
     })
 
+    sub.on('error', (e: Error) => {
+      console.error(`verification Redis error for ${device.id}:`, e)
+      finish(false)
+    })
+
     const onClose = () => finish(false)
     ws.on('close', onClose)
 
@@ -246,6 +256,9 @@ async function runMainLoop(ws: WebSocket, device: Device, state: AppState) {
   })
   commandSub.on('message', (_ch: string, message: string) => {
     if (ws.readyState === WebSocket.OPEN) ws.send(message)
+  })
+  commandSub.on('error', (e: Error) => {
+    console.error(`command Redis error for ${device.device_id}:`, e)
   })
 
   const pingInterval = setInterval(() => {

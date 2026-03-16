@@ -292,10 +292,19 @@ fn rebalance(streams: &mut Vec<StreamState>, target_delay: Duration, max_offset:
 
 /// Push a raw MPEG-TS chunk into the GStreamer `appsrc`.
 fn push_to_appsrc(appsrc: &gst_app::AppSrc, data: Bytes, id: &str) {
-    let mut buf = gst::Buffer::with_size(data.len()).unwrap();
+    let Ok(mut buf) = gst::Buffer::with_size(data.len()) else {
+        warn!("[{id}] failed to allocate GStreamer buffer ({} bytes)", data.len());
+        return;
+    };
     {
-        let buf_ref = buf.get_mut().unwrap();
-        let mut map = buf_ref.map_writable().unwrap();
+        let Some(buf_ref) = buf.get_mut() else {
+            warn!("[{id}] buffer has multiple references, cannot write");
+            return;
+        };
+        let Ok(mut map) = buf_ref.map_writable() else {
+            warn!("[{id}] failed to map buffer as writable");
+            return;
+        };
         map.as_mut_slice().copy_from_slice(&data);
     }
     if let Err(e) = appsrc.push_buffer(buf) {
