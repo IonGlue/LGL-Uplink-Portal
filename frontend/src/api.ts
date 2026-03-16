@@ -49,6 +49,9 @@ export const api = {
     request<Route>('POST', '/routing', { source_id, dest_id }),
   deleteRoute: (id: string) => request<void>('DELETE', `/routing/${id}`),
 
+  // Devices
+  getDevices: () => request<Device[]>('GET', '/devices'),
+
   // System
   getStats: () => request<unknown>('GET', '/system/stats'),
 }
@@ -75,6 +78,19 @@ export interface Destination {
   position_x: number
   position_y: number
   created_at: string
+}
+
+export interface Device {
+  id: string
+  device_id: string
+  hardware_id: string | null
+  hostname: string | null
+  nickname: string | null
+  version: string | null
+  status: string
+  enrollment_state: string
+  verification_state: string
+  last_seen_at: string | null
 }
 
 export interface Route {

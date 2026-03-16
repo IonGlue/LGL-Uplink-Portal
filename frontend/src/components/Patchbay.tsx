@@ -137,25 +137,22 @@ export default function Patchbay() {
   if (loading) return <div style={{ padding: '2rem', color: '#94a3b8' }}>Loading patchbay...</div>
 
   return (
-    <div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: '#0f1117' }}>
-      {/* Top bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 20px', borderBottom: '1px solid #2d3348', background: '#1e2130' }}>
-        <span style={{ fontWeight: 700, fontSize: 16, color: '#e2e8f0', marginRight: 'auto' }}>
-          LGL Ingest — Patchbay
-        </span>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', background: '#0f1117' }}>
+      {/* Toolbar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 20px', borderBottom: '1px solid #2d3348', background: '#141722' }}>
         <button
           onClick={() => setShowAddSource(true)}
-          style={{ background: '#1d4ed8', border: 'none', borderRadius: 6, padding: '7px 14px', color: '#fff', fontSize: 13, cursor: 'pointer' }}
+          style={{ background: '#1d4ed8', border: 'none', borderRadius: 6, padding: '6px 14px', color: '#fff', fontSize: 13, cursor: 'pointer' }}
         >
           + Source
         </button>
         <button
           onClick={() => setShowAddDest(true)}
-          style={{ background: '#047857', border: 'none', borderRadius: 6, padding: '7px 14px', color: '#fff', fontSize: 13, cursor: 'pointer' }}
+          style={{ background: '#047857', border: 'none', borderRadius: 6, padding: '6px 14px', color: '#fff', fontSize: 13, cursor: 'pointer' }}
         >
           + Destination
         </button>
-        <span style={{ fontSize: 12, color: '#64748b' }}>
+        <span style={{ fontSize: 12, color: '#64748b', marginLeft: 'auto' }}>
           {nodes.filter(n => n.id.startsWith('src-')).length} sources · {nodes.filter(n => n.id.startsWith('dst-')).length} destinations · {edges.length} routes
         </span>
       </div>

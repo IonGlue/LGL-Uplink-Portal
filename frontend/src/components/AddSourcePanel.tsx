@@ -1,5 +1,5 @@
-import { useState, FormEvent } from 'react'
-import { api, type Source } from '../api.js'
+import { useState, useEffect, FormEvent } from 'react'
+import { api, type Source, type Device } from '../api.js'
 
 const SOURCE_TYPES = [
   { value: 'encoder', label: '📡 Encoder (SRTLA)', fields: [] },
@@ -28,14 +28,30 @@ const s: Record<string, React.CSSProperties> = {
   cancel: { background: 'transparent', border: '1px solid #2d3348', borderRadius: 6, padding: '9px 18px', color: '#94a3b8', cursor: 'pointer' },
 }
 
+const ENROLL_COLOR: Record<string, string> = {
+  enrolled: '#22c55e',
+  pending: '#eab308',
+  rejected: '#ef4444',
+}
+
 export default function AddSourcePanel({ onClose, onAdded }: { onClose: () => void; onAdded: (src: Source) => void }) {
   const [name, setName] = useState('')
   const [type, setType] = useState('encoder')
   const [fields, setFields] = useState<Record<string, string>>({})
+  const [deviceId, setDeviceId] = useState('')
+  const [devices, setDevices] = useState<Device[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
   const typeInfo = SOURCE_TYPES.find(t => t.value === type)!
+
+  useEffect(() => {
+    if (type === 'encoder') {
+      api.getDevices()
+        .then(d => setDevices(d.filter(dev => dev.enrollment_state === 'enrolled')))
+        .catch(() => {})
+    }
+  }, [type])
 
   function setType2(t: string) {
     setType(t)
@@ -51,7 +67,9 @@ export default function AddSourcePanel({ onClose, onAdded }: { onClose: () => vo
       for (const [k, v] of Object.entries(fields)) {
         config[k] = isNaN(Number(v)) ? v : Number(v)
       }
-      const src = await api.createSource({ name, source_type: type, config })
+      const body: Record<string, unknown> = { name, source_type: type, config }
+      if (type === 'encoder' && deviceId) body.device_id = deviceId
+      const src = await api.createSource(body)
       onAdded(src)
       onClose()
     } catch (err) {
@@ -73,6 +91,46 @@ export default function AddSourcePanel({ onClose, onAdded }: { onClose: () => vo
           <select style={s.select} value={type} onChange={e => setType2(e.target.value)}>
             {SOURCE_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
+
+          {/* Encoder: device picker */}
+          {type === 'encoder' && (
+            <div>
+              <label style={s.label}>Device (enrolled encoder)</label>
+              {devices.length === 0 ? (
+                <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14, padding: '8px 10px', background: '#0f1117', borderRadius: 6, border: '1px solid #2d3348' }}>
+                  No enrolled devices found. Devices appear here after they connect and are enrolled.
+                </div>
+              ) : (
+                <select style={s.select} value={deviceId} onChange={e => setDeviceId(e.target.value)}>
+                  <option value="">— unlinked (any encoder can use this slot) —</option>
+                  {devices.map(d => (
+                    <option key={d.id} value={d.device_id}>
+                      {d.nickname || d.hostname || d.device_id}
+                      {d.status === 'online' ? ' ●' : ' ○'}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {deviceId && (
+                <div style={{ fontSize: 11, color: '#64748b', marginTop: -10, marginBottom: 14 }}>
+                  Only this encoder will be accepted on this slot.
+                </div>
+              )}
+              {/* Device status legend */}
+              {devices.length > 0 && (
+                <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#64748b', marginBottom: 14 }}>
+                  {devices.map(d => (
+                    <span key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: d.status === 'online' ? '#22c55e' : '#475569', display: 'inline-block' }} />
+                      <span style={{ color: '#94a3b8' }}>{d.nickname || d.hostname || d.device_id.slice(0, 12)}</span>
+                      <span style={{ color: ENROLL_COLOR[d.enrollment_state] ?? '#64748b' }}>({d.enrollment_state})</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {typeInfo.fields.map(f => (
             <div key={f}>
               <label style={s.label}>{f.replace(/_/g, ' ')}</label>
