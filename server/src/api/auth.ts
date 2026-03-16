@@ -91,7 +91,8 @@ app.get('/me', authMiddleware, async (c) => {
     `.catch(() => {})
   }
 
-  const [user] = await db`SELECT id, email, display_name, role, created_at FROM users WHERE id = ${claims.sub}`
+  const lookupId = claims._logto?.id ?? claims.sub
+  const [user] = await db`SELECT id, email, display_name, role, created_at FROM users WHERE id = ${lookupId}`
   if (!user) throw AppError.unauthorized()
   return c.json(user)
 })
