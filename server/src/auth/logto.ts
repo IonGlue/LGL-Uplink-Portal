@@ -18,6 +18,12 @@ function getJWKS() {
   return _jwks
 }
 
+// Per-token cache: avoids a round-trip to the orchestrate verify endpoint on
+// every single API call.  Keyed by the raw JWT string, TTL = token lifetime
+// (capped at 5 min so role changes propagate reasonably quickly).
+const _verifyCache = new Map<string, { claims: UserClaims; expiresAt: number }>()
+const CACHE_TTL_MS = 5 * 60 * 1000
+
 /**
  * Returns true when orchestrate has injected the integration env vars,
  * meaning we should validate tokens via Logto rather than the local HS256 secret.
@@ -31,6 +37,10 @@ export function isLogtoMode(): boolean {
  * Throws AppError.unauthorized() / AppError.forbidden() on failure.
  */
 export async function verifyLogtoToken(token: string): Promise<UserClaims> {
+  // Return cached result if still valid
+  const cached = _verifyCache.get(token)
+  if (cached && Date.now() < cached.expiresAt) return cached.claims
+
   let payload: Record<string, unknown>
   try {
     const { payload: p } = await jwtVerify(token, getJWKS(), {
@@ -73,7 +83,7 @@ export async function verifyLogtoToken(token: string): Promise<UserClaims> {
   }
 
   const user = await res.json() as { id: string; email: string; role: string; display_name?: string }
-  return {
+  const claims: UserClaims = {
     sub: payload.sub as string,
     role: user.role,
     type: 'user',
@@ -81,4 +91,18 @@ export async function verifyLogtoToken(token: string): Promise<UserClaims> {
     iat: payload.iat as number,
     _logto: { id: user.id, email: user.email, display_name: user.display_name ?? '', role: user.role },
   }
+
+  // Cache until the sooner of: token expiry or CACHE_TTL_MS from now
+  const tokenExpMs = (payload.exp as number) * 1000
+  const expiresAt = Math.min(tokenExpMs, Date.now() + CACHE_TTL_MS)
+  _verifyCache.set(token, { claims, expiresAt })
+  // Evict expired entries lazily to keep the map from growing unbounded
+  if (_verifyCache.size > 500) {
+    const now = Date.now()
+    for (const [k, v] of _verifyCache) {
+      if (now >= v.expiresAt) _verifyCache.delete(k)
+    }
+  }
+
+  return claims
 }
