@@ -9,7 +9,7 @@ type View = 'rack' | 'redistribute'
 const NAV_STYLE: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 0,
   padding: '0 20px', height: 44,
-  background: '#141722', borderBottom: '1px solid #2d3348',
+  background: '#1E1E2A', borderBottom: '1px solid #282838',
 }
 
 function NavBtn({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
@@ -19,8 +19,8 @@ function NavBtn({ label, active, onClick }: { label: string; active: boolean; on
       style={{
         background: 'transparent',
         border: 'none',
-        borderBottom: active ? '2px solid #3b82f6' : '2px solid transparent',
-        color: active ? '#e2e8f0' : '#64748b',
+        borderBottom: active ? '2px solid #8B5CF6' : '2px solid transparent',
+        color: active ? '#EEEEF2' : '#8E8E9F',
         fontSize: 13,
         fontWeight: active ? 600 : 400,
         padding: '0 14px',
@@ -78,7 +78,7 @@ export default function App() {
   if (!authed && localLogin) return <Login onLogin={() => setAuthed(true)} />
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#0f1117' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#141418' }}>
       {/* Top nav */}
       <div style={NAV_STYLE}>
         <span style={{ fontWeight: 700, fontSize: 14, color: '#e2e8f0', marginRight: 16 }}>LGL Ingest</span>

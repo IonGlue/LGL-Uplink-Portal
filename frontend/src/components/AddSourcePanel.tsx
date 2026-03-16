@@ -19,18 +19,18 @@ const DEFAULTS: Record<string, Record<string, string>> = {
 
 const s: Record<string, React.CSSProperties> = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end' },
-  panel: { background: '#1e2130', width: 360, height: '100%', padding: '24px', overflowY: 'auto', borderLeft: '1px solid #2d3348' },
-  title: { fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 20 },
-  label: { display: 'block', fontSize: 12, color: '#94a3b8', marginBottom: 6 },
-  input: { width: '100%', background: '#0f1117', border: '1px solid #2d3348', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 13, marginBottom: 14 },
-  select: { width: '100%', background: '#0f1117', border: '1px solid #2d3348', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 13, marginBottom: 14 },
-  btn: { background: '#3b82f6', border: 'none', borderRadius: 6, padding: '9px 18px', color: '#fff', fontWeight: 600, cursor: 'pointer', marginRight: 8 },
-  cancel: { background: 'transparent', border: '1px solid #2d3348', borderRadius: 6, padding: '9px 18px', color: '#94a3b8', cursor: 'pointer' },
+  panel: { background: '#1E1E2A', width: 360, height: '100%', padding: '24px', overflowY: 'auto', borderLeft: '1px solid #282838' },
+  title: { fontSize: 18, fontWeight: 700, color: '#EEEEF2', marginBottom: 20 },
+  label: { display: 'block', fontSize: 12, color: '#8E8E9F', marginBottom: 6 },
+  input: { width: '100%', background: '#141418', border: '1px solid #282838', borderRadius: 6, padding: '8px 10px', color: '#EEEEF2', fontSize: 13, marginBottom: 14 },
+  select: { width: '100%', background: '#141418', border: '1px solid #282838', borderRadius: 6, padding: '8px 10px', color: '#EEEEF2', fontSize: 13, marginBottom: 14 },
+  btn: { background: '#8B5CF6', border: 'none', borderRadius: 6, padding: '9px 18px', color: '#fff', fontWeight: 600, cursor: 'pointer', marginRight: 8 },
+  cancel: { background: 'transparent', border: '1px solid #282838', borderRadius: 6, padding: '9px 18px', color: '#8E8E9F', cursor: 'pointer' },
 }
 
 const ENROLL_COLOR: Record<string, string> = {
-  enrolled: '#22c55e',
-  pending: '#eab308',
+  enrolled: '#10B981',
+  pending: '#F59E0B',
   rejected: '#ef4444',
 }
 
@@ -97,7 +97,7 @@ export default function AddSourcePanel({ onClose, onAdded }: { onClose: () => vo
             <div>
               <label style={s.label}>Device (enrolled encoder)</label>
               {devices.length === 0 ? (
-                <div style={{ fontSize: 12, color: '#64748b', marginBottom: 14, padding: '8px 10px', background: '#0f1117', borderRadius: 6, border: '1px solid #2d3348' }}>
+                <div style={{ fontSize: 12, color: '#8E8E9F', marginBottom: 14, padding: '8px 10px', background: '#0f1117', borderRadius: 6, border: '1px solid #2d3348' }}>
                   No enrolled devices found. Devices appear here after they connect and are enrolled.
                 </div>
               ) : (
@@ -112,18 +112,18 @@ export default function AddSourcePanel({ onClose, onAdded }: { onClose: () => vo
                 </select>
               )}
               {deviceId && (
-                <div style={{ fontSize: 11, color: '#64748b', marginTop: -10, marginBottom: 14 }}>
+                <div style={{ fontSize: 11, color: '#8E8E9F', marginTop: -10, marginBottom: 14 }}>
                   Only this encoder will be accepted on this slot.
                 </div>
               )}
               {/* Device status legend */}
               {devices.length > 0 && (
-                <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#64748b', marginBottom: 14 }}>
+                <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#8E8E9F', marginBottom: 14 }}>
                   {devices.map(d => (
                     <span key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: d.status === 'online' ? '#22c55e' : '#475569', display: 'inline-block' }} />
-                      <span style={{ color: '#94a3b8' }}>{d.nickname || d.hostname || d.device_id.slice(0, 12)}</span>
-                      <span style={{ color: ENROLL_COLOR[d.enrollment_state] ?? '#64748b' }}>({d.enrollment_state})</span>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: d.status === 'online' ? '#10B981' : '#555566', display: 'inline-block' }} />
+                      <span style={{ color: '#8E8E9F' }}>{d.nickname || d.hostname || d.device_id.slice(0, 12)}</span>
+                      <span style={{ color: ENROLL_COLOR[d.enrollment_state] ?? '#8E8E9F' }}>({d.enrollment_state})</span>
                     </span>
                   ))}
                 </div>

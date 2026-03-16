@@ -20,13 +20,13 @@ const DEFAULTS: Record<string, Record<string, string>> = {
 
 const s: Record<string, React.CSSProperties> = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', justifyContent: 'flex-end' },
-  panel: { background: '#1e2130', width: 360, height: '100%', padding: '24px', overflowY: 'auto', borderLeft: '1px solid #2d3348' },
-  title: { fontSize: 18, fontWeight: 700, color: '#e2e8f0', marginBottom: 20 },
-  label: { display: 'block', fontSize: 12, color: '#94a3b8', marginBottom: 6 },
-  input: { width: '100%', background: '#0f1117', border: '1px solid #2d3348', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 13, marginBottom: 14 },
-  select: { width: '100%', background: '#0f1117', border: '1px solid #2d3348', borderRadius: 6, padding: '8px 10px', color: '#e2e8f0', fontSize: 13, marginBottom: 14 },
-  btn: { background: '#3b82f6', border: 'none', borderRadius: 6, padding: '9px 18px', color: '#fff', fontWeight: 600, cursor: 'pointer', marginRight: 8 },
-  cancel: { background: 'transparent', border: '1px solid #2d3348', borderRadius: 6, padding: '9px 18px', color: '#94a3b8', cursor: 'pointer' },
+  panel: { background: '#1E1E2A', width: 360, height: '100%', padding: '24px', overflowY: 'auto', borderLeft: '1px solid #282838' },
+  title: { fontSize: 18, fontWeight: 700, color: '#EEEEF2', marginBottom: 20 },
+  label: { display: 'block', fontSize: 12, color: '#8E8E9F', marginBottom: 6 },
+  input: { width: '100%', background: '#141418', border: '1px solid #282838', borderRadius: 6, padding: '8px 10px', color: '#EEEEF2', fontSize: 13, marginBottom: 14 },
+  select: { width: '100%', background: '#141418', border: '1px solid #282838', borderRadius: 6, padding: '8px 10px', color: '#EEEEF2', fontSize: 13, marginBottom: 14 },
+  btn: { background: '#8B5CF6', border: 'none', borderRadius: 6, padding: '9px 18px', color: '#fff', fontWeight: 600, cursor: 'pointer', marginRight: 8 },
+  cancel: { background: 'transparent', border: '1px solid #282838', borderRadius: 6, padding: '9px 18px', color: '#8E8E9F', cursor: 'pointer' },
 }
 
 export default function AddDestPanel({ onClose, onAdded }: { onClose: () => void; onAdded: (d: Destination) => void }) {
