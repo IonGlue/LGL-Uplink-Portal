@@ -41,6 +41,14 @@ export default function App() {
   const [view, setView] = useState<View>('patchbay')
 
   useEffect(() => {
+    // Pick up ?token= injected by the portal and persist it
+    const params = new URLSearchParams(window.location.search)
+    const urlToken = params.get('token')
+    if (urlToken) {
+      localStorage.setItem('token', urlToken)
+      window.history.replaceState({}, '', window.location.pathname)
+    }
+
     if (!localStorage.getItem('token')) { setLoading(false); return }
     api.me()
       .then(() => setAuthed(true))
