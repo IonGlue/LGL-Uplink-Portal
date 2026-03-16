@@ -609,7 +609,7 @@ export default function RackPatchbay() {
       {/* Dual rack + patch channel */}
       <div
         ref={mainRef}
-        style={{ flex: 1, overflow: 'hidden', position: 'relative', display: 'flex', gap: 0, background: C.base, padding: '16px 20px', gap: 0 }}
+        style={{ flex: 1, overflow: 'hidden', position: 'relative', display: 'flex', background: C.base, padding: '16px 20px', gap: 0 }}
       >
         {/* ── Left rack (Sources) ── */}
         <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
