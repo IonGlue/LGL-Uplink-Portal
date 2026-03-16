@@ -1,33 +1,34 @@
 import { Handle, Position, type NodeProps } from '@xyflow/react'
+import { Radio, Signal, Link, Tv, Sliders, CircleDashed, type LucideIcon } from 'lucide-react'
 import type { Source } from '../api.js'
 
-const TYPE_ICON: Record<string, string> = {
-  encoder: '📡',
-  srt_listen: '🔗',
-  srt_pull: '🔗',
-  rtmp_pull: '📺',
-  test_pattern: '🎨',
-  placeholder: '👻',
+const TYPE_ICON: Record<string, LucideIcon> = {
+  encoder:      Radio,
+  srt_listen:   Signal,
+  srt_pull:     Link,
+  rtmp_pull:    Tv,
+  test_pattern: Sliders,
+  placeholder:  CircleDashed,
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  active: '#22c55e',
-  waiting: '#eab308',
-  error: '#ef4444',
-  idle: '#64748b',
-  placeholder: '#475569',
+  active:      '#10B981',
+  waiting:     '#F59E0B',
+  error:       '#EF4444',
+  idle:        '#8E8E9F',
+  placeholder: '#555566',
 }
 
 export default function SourceNode({ data }: NodeProps) {
   const src = data as unknown as Source & { onDelete: (id: string) => void }
-  const icon = TYPE_ICON[src.source_type] ?? '📡'
-  const color = STATUS_COLOR[src.status] ?? '#64748b'
+  const Icon = TYPE_ICON[src.source_type] ?? Radio
+  const color = STATUS_COLOR[src.status] ?? '#8E8E9F'
   const isPlaceholder = src.source_type === 'placeholder'
 
   return (
     <div style={{
-      background: '#1e2130',
-      border: `2px solid ${isPlaceholder ? '#2d3348' : color}`,
+      background: '#1E1E2A',
+      border: `2px solid ${isPlaceholder ? '#282838' : color}`,
       borderStyle: isPlaceholder ? 'dashed' : 'solid',
       borderRadius: 10,
       padding: '12px 16px',
@@ -35,12 +36,12 @@ export default function SourceNode({ data }: NodeProps) {
       position: 'relative',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-        <span style={{ fontSize: 18 }}>{icon}</span>
-        <span style={{ fontWeight: 600, fontSize: 14, color: '#e2e8f0' }}>{src.name}</span>
+        <Icon size={16} color={color} />
+        <span style={{ fontWeight: 600, fontSize: 14, color: '#EEEEF2' }}>{src.name}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
-        <span style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase' }}>
+        <span style={{ fontSize: 11, color: '#8E8E9F', textTransform: 'uppercase' }}>
           {src.source_type.replace('_', ' ')} · {src.status}
         </span>
       </div>

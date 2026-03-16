@@ -9,6 +9,7 @@
  * structured, top-to-bottom slot layout.
  */
 import { useEffect, useState, useCallback } from 'react'
+import { Radio, Signal, Link, Tv, Sliders, CircleDashed, Globe, HardDrive, RefreshCw, Rss, type LucideIcon } from 'lucide-react'
 import { api, type Source, type Destination, type Route } from '../api.js'
 import AddSourcePanel from './AddSourcePanel.js'
 import AddDestPanel from './AddDestPanel.js'
@@ -23,18 +24,18 @@ const STATUS_DOT: Record<string, string> = {
   placeholder: '#2d3348',
 }
 
-const TYPE_ICON: Record<string, string> = {
-  encoder: '📡',
-  srt_listen: '🔗',
-  srt_pull: '🔗',
-  rtmp_pull: '📺',
-  test_pattern: '🎨',
-  placeholder: '👻',
-  rtmp: '📺',
-  srt_push: '📡',
-  hls: '🌐',
-  recorder: '💾',
-  lgl_ingest: '🔄',
+const TYPE_ICON: Record<string, LucideIcon> = {
+  encoder:      Radio,
+  srt_listen:   Signal,
+  srt_pull:     Link,
+  rtmp_pull:    Tv,
+  test_pattern: Sliders,
+  placeholder:  CircleDashed,
+  rtmp:         Tv,
+  srt_push:     Rss,
+  hls:          Globe,
+  recorder:     HardDrive,
+  lgl_ingest:   RefreshCw,
 }
 
 function dot(status: string) {
@@ -74,7 +75,7 @@ function SourceRow({ slot, src, routes, onDelete, onStart, onStop }: SourceRowPr
   const myRoutes = routes.filter(r => r.source_id === src.id)
   const isPlaceholder = src.source_type === 'placeholder'
   const dotColor = STATUS_DOT[src.status] ?? '#475569'
-  const icon = TYPE_ICON[src.source_type] ?? '📡'
+  const SrcIcon = TYPE_ICON[src.source_type] ?? Radio
   const isActive = src.status === 'active'
 
   return (
@@ -89,7 +90,7 @@ function SourceRow({ slot, src, routes, onDelete, onStart, onStop }: SourceRowPr
     }}>
       <SlotNumber n={slot} />
       {dot(src.status)}
-      <span style={{ fontSize: 15, flexShrink: 0 }}>{icon}</span>
+      <SrcIcon size={14} color="#8E8E9F" style={{ flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 600, fontSize: 13, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {src.name}
@@ -145,7 +146,7 @@ interface DestRowProps {
 function DestRow({ slot, dest, routes, onDelete, onStart, onStop }: DestRowProps) {
   const myRoutes = routes.filter(r => r.dest_id === dest.id)
   const isPlaceholder = dest.dest_type === 'placeholder'
-  const icon = TYPE_ICON[dest.dest_type] ?? '📺'
+  const DstIcon = TYPE_ICON[dest.dest_type] ?? Tv
   const isActive = dest.status === 'active'
   const dotColor = STATUS_DOT[dest.status] ?? '#475569'
 
@@ -161,7 +162,7 @@ function DestRow({ slot, dest, routes, onDelete, onStart, onStop }: DestRowProps
     }}>
       <SlotNumber n={slot} />
       {dot(dest.status)}
-      <span style={{ fontSize: 15, flexShrink: 0 }}>{icon}</span>
+      <DstIcon size={14} color="#8E8E9F" style={{ flexShrink: 0 }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontWeight: 600, fontSize: 13, color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {dest.name}

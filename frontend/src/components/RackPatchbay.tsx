@@ -11,6 +11,10 @@
  *   4. Press Escape to cancel selection
  */
 import { useEffect, useState, useCallback, useRef } from 'react'
+import {
+  Radio, Signal, Link, Tv, Sliders, CircleDashed,
+  Globe, HardDrive, RefreshCw, Rss, type LucideIcon,
+} from 'lucide-react'
 import { api, type Source, type Destination, type Route } from '../api.js'
 import AddSourcePanel from './AddSourcePanel.js'
 import AddDestPanel from './AddDestPanel.js'
@@ -45,18 +49,22 @@ const STATUS_COLOR: Record<string, string> = {
   placeholder: C.raised,
 }
 
-const TYPE_ICON: Record<string, string> = {
-  encoder:      '📡',
-  srt_listen:   '🔗',
-  srt_pull:     '🔗',
-  rtmp_pull:    '📺',
-  test_pattern: '🎨',
-  placeholder:  '👻',
-  rtmp:         '📺',
-  srt_push:     '📡',
-  hls:          '🌐',
-  recorder:     '💾',
-  lgl_ingest:   '🔄',
+const SRC_ICONS: Record<string, LucideIcon> = {
+  encoder:      Radio,
+  srt_listen:   Signal,
+  srt_pull:     Link,
+  rtmp_pull:    Tv,
+  test_pattern: Sliders,
+  placeholder:  CircleDashed,
+}
+
+const DST_ICONS: Record<string, LucideIcon> = {
+  rtmp:         Tv,
+  srt_push:     Rss,
+  hls:          Globe,
+  recorder:     HardDrive,
+  lgl_ingest:   RefreshCw,
+  placeholder:  CircleDashed,
 }
 
 const SLOT_H = 48  // 1U height in pixels
@@ -207,6 +215,7 @@ function SourceSlot({ slot, src, routes, selected, onClick, onDelete, onStart, o
   const isPlaceholder = src.source_type === 'placeholder'
   const statusColor = STATUS_COLOR[src.status] ?? C.textMuted
   const faceColor = selected ? `${C.violet}22` : isPlaceholder ? C.chassis : C.rackFace
+  const SrcIcon = SRC_ICONS[src.source_type] ?? Radio
 
   return (
     <div
@@ -261,7 +270,7 @@ function SourceSlot({ slot, src, routes, selected, onClick, onDelete, onStart, o
         }} />
 
         {/* Type icon */}
-        <span style={{ fontSize: 13, flexShrink: 0 }}>{TYPE_ICON[src.source_type] ?? '📡'}</span>
+        <SrcIcon size={13} color={C.textSub} style={{ flexShrink: 0 }} />
 
         {/* Name + type */}
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -314,6 +323,7 @@ function DestSlot({ slot, dest, routes, isTarget, onClick, onDelete, onStart, on
   const myRoutes = routes.filter(r => r.dest_id === dest.id)
   const isPlaceholder = dest.dest_type === 'placeholder'
   const statusColor = STATUS_COLOR[dest.status] ?? C.textMuted
+  const DstIcon = DST_ICONS[dest.dest_type] ?? Tv
 
   return (
     <div
@@ -366,7 +376,7 @@ function DestSlot({ slot, dest, routes, isTarget, onClick, onDelete, onStart, on
         }} />
 
         {/* Type icon */}
-        <span style={{ fontSize: 13, flexShrink: 0 }}>{TYPE_ICON[dest.dest_type] ?? '📺'}</span>
+        <DstIcon size={13} color={C.textSub} style={{ flexShrink: 0 }} />
 
         {/* Name + type */}
         <div style={{ flex: 1, minWidth: 0 }}>
