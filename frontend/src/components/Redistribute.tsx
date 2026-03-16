@@ -8,6 +8,7 @@
  * a source → route is created. Disconnect removes the route.
  */
 import { useState, useEffect, useCallback } from 'react'
+import { Radio, Signal, Link, Tv, Sliders, type LucideIcon } from 'lucide-react'
 import { api, type Source, type Destination, type Route } from '../api.js'
 import AddRedistributePanel from './AddRedistributePanel.js'
 
@@ -48,12 +49,12 @@ const STATUS_DOT: Record<string, string> = {
   idle:    '#555566',
 }
 
-const SOURCE_TYPE_ICON: Record<string, string> = {
-  encoder:      '📡',
-  srt_listen:   '🔗',
-  srt_pull:     '🔗',
-  rtmp_pull:    '📺',
-  test_pattern: '🎨',
+const SOURCE_TYPE_ICON: Record<string, LucideIcon> = {
+  encoder:      Radio,
+  srt_listen:   Signal,
+  srt_pull:     Link,
+  rtmp_pull:    Tv,
+  test_pattern: Sliders,
 }
 
 function timeAgo(iso: string | null | undefined): string {
@@ -73,7 +74,7 @@ function SourceCard({ src, connected, selected, onSelect }: {
   onSelect: () => void
 }) {
   const dotColor = STATUS_DOT[src.status] ?? '#555566'
-  const icon = SOURCE_TYPE_ICON[src.source_type] ?? '📡'
+  const SrcIcon = SOURCE_TYPE_ICON[src.source_type] ?? Radio
 
   return (
     <div
@@ -90,7 +91,7 @@ function SourceCard({ src, connected, selected, onSelect }: {
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <span style={{ width: 8, height: 8, borderRadius: '50%', background: dotColor, flexShrink: 0, display: 'inline-block' }} />
-        <span style={{ fontSize: 16, flexShrink: 0 }}>{icon}</span>
+        <SrcIcon size={15} color="#8E8E9F" style={{ flexShrink: 0 }} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: 13, color: '#EEEEF2', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {src.name}

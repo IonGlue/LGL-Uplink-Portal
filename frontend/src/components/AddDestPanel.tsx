@@ -2,12 +2,12 @@ import { useState, FormEvent } from 'react'
 import { api, type Destination } from '../api.js'
 
 const DEST_TYPES = [
-  { value: 'rtmp', label: '📺 RTMP Push', fields: ['url'] },
-  { value: 'srt_push', label: '📡 SRT Push', fields: ['host', 'port', 'latency_ms'] },
-  { value: 'hls', label: '🌐 HLS', fields: ['location', 'playlist_location', 'target_duration'] },
-  { value: 'recorder', label: '💾 Recorder', fields: ['path', 'segment_duration_secs', 'max_size_gb'] },
-  { value: 'lgl_ingest', label: '🔄 LGL Ingest (re-stream)', fields: ['host', 'port', 'latency_ms'] },
-  { value: 'placeholder', label: '👻 Placeholder', fields: [] },
+  { value: 'rtmp', label: 'RTMP Push', fields: ['url'] },
+  { value: 'srt_push', label: 'SRT Push', fields: ['host', 'port', 'latency_ms'] },
+  { value: 'hls', label: 'HLS', fields: ['location', 'playlist_location', 'target_duration'] },
+  { value: 'recorder', label: 'Recorder', fields: ['path', 'segment_duration_secs', 'max_size_gb'] },
+  { value: 'lgl_ingest', label: 'LGL Ingest (re-stream)', fields: ['host', 'port', 'latency_ms'] },
+  { value: 'placeholder', label: 'Placeholder', fields: [] },
 ]
 
 const DEFAULTS: Record<string, Record<string, string>> = {

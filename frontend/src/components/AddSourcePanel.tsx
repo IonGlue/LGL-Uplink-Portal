@@ -2,12 +2,12 @@ import { useState, useEffect, FormEvent } from 'react'
 import { api, type Source, type Device } from '../api.js'
 
 const SOURCE_TYPES = [
-  { value: 'encoder', label: '📡 Encoder (SRTLA)', fields: [] },
-  { value: 'srt_listen', label: '🔗 SRT Listen (inbound)', fields: ['port', 'latency_ms'] },
-  { value: 'srt_pull', label: '🔗 SRT Pull (outbound)', fields: ['host', 'port', 'latency_ms'] },
-  { value: 'rtmp_pull', label: '📺 RTMP Pull', fields: ['url'] },
-  { value: 'test_pattern', label: '🎨 Test Pattern', fields: ['pattern', 'width', 'height', 'framerate', 'bitrate_kbps'] },
-  { value: 'placeholder', label: '👻 Placeholder', fields: [] },
+  { value: 'encoder', label: 'Encoder (SRTLA)', fields: [] },
+  { value: 'srt_listen', label: 'SRT Listen (inbound)', fields: ['port', 'latency_ms'] },
+  { value: 'srt_pull', label: 'SRT Pull (outbound)', fields: ['host', 'port', 'latency_ms'] },
+  { value: 'rtmp_pull', label: 'RTMP Pull', fields: ['url'] },
+  { value: 'test_pattern', label: 'Test Pattern', fields: ['pattern', 'width', 'height', 'framerate', 'bitrate_kbps'] },
+  { value: 'placeholder', label: 'Placeholder', fields: [] },
 ]
 
 const DEFAULTS: Record<string, Record<string, string>> = {
