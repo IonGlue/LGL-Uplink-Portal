@@ -3,8 +3,9 @@ import { api } from './api.js'
 import Login from './components/Login.js'
 import Patchbay from './components/Patchbay.js'
 import VirtualRack from './components/VirtualRack.js'
+import Redistribute from './components/Redistribute.js'
 
-type View = 'patchbay' | 'rack'
+type View = 'patchbay' | 'rack' | 'redistribute'
 
 const NAV_STYLE: React.CSSProperties = {
   display: 'flex', alignItems: 'center', gap: 0,
@@ -57,11 +58,12 @@ export default function App() {
         <span style={{ fontWeight: 700, fontSize: 14, color: '#e2e8f0', marginRight: 16 }}>LGL Ingest</span>
         <NavBtn label="Patchbay" active={view === 'patchbay'} onClick={() => setView('patchbay')} />
         <NavBtn label="Virtual Rack" active={view === 'rack'} onClick={() => setView('rack')} />
+        <NavBtn label="Redistribute" active={view === 'redistribute'} onClick={() => setView('redistribute')} />
       </div>
 
       {/* View */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
-        {view === 'patchbay' ? <Patchbay /> : <VirtualRack />}
+        {view === 'patchbay' ? <Patchbay /> : view === 'rack' ? <VirtualRack /> : <Redistribute />}
       </div>
     </div>
   )
